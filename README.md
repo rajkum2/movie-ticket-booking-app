@@ -21,7 +21,8 @@ movie-ticket-booking-app/
 
 ## Quick start (local)
 
-1. **Database** — create a Supabase project and run [`BN/schema.sql`](./BN/schema.sql) in the SQL Editor.
+1. **Database** — create a Supabase project and run [`BN/schema.sql`](./BN/schema.sql) in the SQL Editor.  
+   For **115+ movies** (highly recommended for testing search & filters), also run [`BN/seed-movies.sql`](./BN/seed-movies.sql).
 2. **Backend** — see [BN/README.md](./BN/README.md):
    ```bash
    cd BN && pip install -r requirements.txt

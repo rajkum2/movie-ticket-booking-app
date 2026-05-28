@@ -5,8 +5,9 @@ FastAPI service backed by Supabase (Postgres). No authentication. Dummy payments
 ## 1. Set up Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor → New query**, paste the contents of [`schema.sql`](./schema.sql), and run it. This creates the `movies` and `bookings` tables and seeds a few sample movies.
-3. Go to **Project Settings → API** and copy:
+2. Open **SQL Editor → New query**, paste the contents of [`schema.sql`](./schema.sql), and run it. This creates the `movies` and `bookings` tables and seeds 4 classic sample movies.
+3. (Optional but recommended) To load **115+ diverse movies** (great for demoing the search & filters), also run [`seed-movies.sql`](./seed-movies.sql) in the SQL Editor.
+4. Go to **Project Settings → API** and copy:
    - **Project URL** → `SUPABASE_URL`
    - **`service_role` key** (under "Project API keys") → `SUPABASE_KEY`
 

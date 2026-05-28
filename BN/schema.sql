@@ -1,5 +1,8 @@
 -- Run this in the Supabase SQL Editor (Dashboard > SQL Editor > New query).
--- It creates the two tables and inserts a few sample movies.
+-- It creates the two tables and inserts 4 classic sample movies.
+--
+-- For 115+ additional diverse movies (great for search/filter testing),
+-- also run `seed-movies.sql` after this file.
 
 -- ---------------------------------------------------------------------------
 -- Tables
