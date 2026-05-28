@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import Footer from "./components/Footer.jsx";
 import Home from "./pages/Home.jsx";
 import Movies from "./pages/Movies.jsx";
 import SeatSelection from "./pages/SeatSelection.jsx";
@@ -228,6 +229,7 @@ export default function App() {
           />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }

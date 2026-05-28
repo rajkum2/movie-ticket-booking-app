@@ -11,6 +11,7 @@ const EMPTY = {
   title: "",
   description: "",
   poster_url: "",
+  backdrop_url: "",
   trailer_url: "",
   genre: "",
   language: "",
@@ -25,6 +26,7 @@ function toPayload(form) {
     title: form.title.trim(),
     description: form.description.trim() || null,
     poster_url: form.poster_url.trim() || null,
+    backdrop_url: form.backdrop_url.trim() || null,
     trailer_url: form.trailer_url.trim() || null,
     genre: form.genre.trim() || null,
     language: form.language.trim() || null,
@@ -45,6 +47,7 @@ function fromMovie(m) {
     title: m.title || "",
     description: m.description || "",
     poster_url: m.poster_url || "",
+    backdrop_url: m.backdrop_url || "",
     trailer_url: m.trailer_url || "",
     genre: m.genre || "",
     language: m.language || "",
@@ -269,6 +272,15 @@ export default function MoviesTab() {
                 value={form.trailer_url}
                 onChange={onChange("trailer_url")}
                 placeholder="https://www.youtube.com/watch?v=…"
+              />
+            </label>
+            <label>
+              Landscape backdrop URL (16:9)
+              <input
+                type="url"
+                value={form.backdrop_url}
+                onChange={onChange("backdrop_url")}
+                placeholder="https://image.tmdb.org/t/p/w1280/…"
               />
             </label>
             <div className="row-2">

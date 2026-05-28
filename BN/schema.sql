@@ -22,8 +22,9 @@ create table if not exists movies (
     trailer_url      text
 );
 
--- If the movies table predates trailer_url, add the column.
+-- If the movies table predates trailer_url / backdrop_url, add the columns.
 alter table movies add column if not exists trailer_url text;
+alter table movies add column if not exists backdrop_url text;
 
 create table if not exists users (
     id              bigint generated always as identity primary key,

@@ -59,6 +59,7 @@ export default function MovieManager() {
       title: "",
       description: "",
       poster_url: "",
+      backdrop_url: "",
       trailer_url: "",
       genre: "",
       language: "",
@@ -76,6 +77,7 @@ export default function MovieManager() {
       title: movie.title,
       description: movie.description || "",
       poster_url: movie.poster_url || "",
+      backdrop_url: movie.backdrop_url || "",
       trailer_url: movie.trailer_url || "",
       genre: movie.genre || "",
       language: movie.language || "",
@@ -108,6 +110,7 @@ export default function MovieManager() {
       title: formData.title,
       description: formData.description,
       poster_url: formData.poster_url,
+      backdrop_url: formData.backdrop_url || null,
       trailer_url: formData.trailer_url || null,
       genre: formData.genre,
       language: formData.language,
@@ -305,6 +308,18 @@ export default function MovieManager() {
                       setFormData({ ...formData, trailer_url: e.target.value })
                     }
                     placeholder="https://www.youtube.com/watch?v=..."
+                  />
+                </label>
+
+                <label style={{ gridColumn: "1 / -1" }}>
+                  Landscape backdrop URL (16:9)
+                  <input
+                    type="url"
+                    value={formData.backdrop_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, backdrop_url: e.target.value })
+                    }
+                    placeholder="https://image.tmdb.org/t/p/w1280/..."
                   />
                 </label>
 
