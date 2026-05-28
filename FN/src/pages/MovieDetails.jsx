@@ -44,7 +44,14 @@ export default function MovieDetails() {
     .join(" • ");
 
   return (
-    <section className="movie-details">
+    <section
+      className="movie-details"
+      style={
+        movie.poster_url
+          ? { "--detail-backdrop": `url(${movie.poster_url})` }
+          : {}
+      }
+    >
       <button className="link-btn" onClick={() => navigate("/")}>
         ← Back to movies
       </button>

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getMovies } from "../api";
 import { useAuth } from "../auth.jsx";
 
 export default function Movies() {
   const [movies, setMovies] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedLanguages, setSelectedLanguages] = useState([]);
   const [minRating, setMinRating] = useState(null); // null = no filter, or a number like 8
@@ -97,7 +98,7 @@ export default function Movies() {
 
   return (
     <section>
-      <h1 className="page-title">Now Showing</h1>
+      <h1 className="page-title">Browse movies</h1>
 
       {/* Search box */}
       <div className="search-bar">

@@ -1,4 +1,6 @@
-import { Link, Route, Routes, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import Home from "./pages/Home.jsx";
 import Movies from "./pages/Movies.jsx";
 import SeatSelection from "./pages/SeatSelection.jsx";
 import Payment from "./pages/Payment.jsx";
@@ -14,49 +16,153 @@ import { RequireAuth, useAuth } from "./auth.jsx";
 function Header() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 30);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen) searchRef.current?.focus();
+  }, [searchOpen]);
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    if (!search.trim()) return;
+    navigate(`/browse?q=${encodeURIComponent(search.trim())}`);
+    setSearchOpen(false);
+    setSearch("");
+  };
 
   const handleLogout = async () => {
     await signOut();
+    setMenuOpen(false);
     navigate("/login", { replace: true });
   };
 
   return (
-    <header className="app-header">
+    <header className={`nx-header ${scrolled ? "nx-header-solid" : ""}`}>
       <Link to="/" className="brand">
         🎬 CineBook
       </Link>
-      <nav className="header-nav">
-        {user?.role === "admin" && (
-          <>
-            <button className="link-btn" onClick={() => navigate("/admin")}>
-              Dashboard
-            </button>
-            <button className="link-btn" onClick={() => navigate("/manage")}>
-              Manage Movies
-            </button>
-          </>
-        )}
-        {user?.role === "user" && (
-          <button className="link-btn" onClick={() => navigate("/my-bookings")}>
+
+      <nav className="nx-nav">
+        <NavLink to="/" end className="nx-nav-link">
+          Home
+        </NavLink>
+        <NavLink to="/browse" className="nx-nav-link">
+          Browse
+        </NavLink>
+        {user && (
+          <NavLink to="/my-bookings" className="nx-nav-link">
             My bookings
+          </NavLink>
+        )}
+        {user?.role === "admin" && (
+          <NavLink to="/admin" className="nx-nav-link">
+            Admin
+          </NavLink>
+        )}
+      </nav>
+
+      <div className="nx-header-actions">
+        {searchOpen ? (
+          <form className="nx-search" onSubmit={submitSearch}>
+            <input
+              ref={searchRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Titles, genres, languages…"
+              onBlur={() => !search && setSearchOpen(false)}
+            />
+            <button type="submit" className="nx-icon-btn" aria-label="Search">
+              🔍
+            </button>
+          </form>
+        ) : (
+          <button
+            className="nx-icon-btn"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Open search"
+          >
+            🔍
           </button>
         )}
+
         {user ? (
-          <>
-            <span className="user-chip">
-              {user.full_name || user.email}
-              <span className={`role-tag role-${user.role}`}>{user.role}</span>
-            </span>
-            <button className="admin-btn" onClick={handleLogout}>
-              Sign out
+          <div className="nx-profile">
+            <button
+              className="nx-profile-btn"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+            >
+              <span className="nx-avatar">
+                {(user.full_name || user.email).charAt(0).toUpperCase()}
+              </span>
+              <span className="nx-caret">▾</span>
             </button>
-          </>
+            {menuOpen && (
+              <>
+                <div
+                  className="nx-menu-backdrop"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div className="nx-menu">
+                  <div className="nx-menu-head">
+                    <strong>{user.full_name || user.email}</strong>
+                    <span className={`role-tag role-${user.role}`}>
+                      {user.role}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/my-bookings");
+                    }}
+                  >
+                    My bookings
+                  </button>
+                  {user.role === "admin" && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        navigate("/admin");
+                      }}
+                    >
+                      Admin dashboard
+                    </button>
+                  )}
+                  {user.role === "admin" && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        navigate("/manage");
+                      }}
+                    >
+                      Manage movies
+                    </button>
+                  )}
+                  <div className="nx-menu-sep" />
+                  <button onClick={handleLogout}>Sign out</button>
+                </div>
+              </>
+            )}
+          </div>
         ) : (
-          <button className="admin-btn" onClick={() => navigate("/login")}>
+          <button className="nx-btn-signin" onClick={() => navigate("/login")}>
             Sign in
           </button>
         )}
-      </nav>
+      </div>
     </header>
   );
 }
@@ -67,7 +173,8 @@ export default function App() {
       <Header />
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<Movies />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/browse" element={<Movies />} />
           <Route path="/movies/:movieId" element={<MovieDetails />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
