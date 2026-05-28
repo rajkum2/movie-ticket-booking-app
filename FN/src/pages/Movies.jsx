@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMovies } from "../api";
+import { useAuth } from "../auth.jsx";
 
 export default function Movies() {
   const [movies, setMovies] = useState([]);
@@ -11,6 +12,15 @@ export default function Movies() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleBook = (id) => {
+    if (!user) {
+      navigate("/login", { state: { from: { pathname: `/seats/${id}` } } });
+    } else {
+      navigate(`/seats/${id}`);
+    }
+  };
 
   useEffect(() => {
     getMovies()
@@ -27,24 +37,20 @@ export default function Movies() {
   const filteredMovies = movies.filter((m) => {
     const q = searchTerm.trim().toLowerCase();
 
-    // Search across title, genre, and language
     const matchesSearch =
       !q ||
       m.title.toLowerCase().includes(q) ||
       (m.genre && m.genre.toLowerCase().includes(q)) ||
       (m.language && m.language.toLowerCase().includes(q));
 
-    // Genre filter (multi-select: movie must match at least one selected)
     const matchesGenre =
       selectedGenres.length === 0 ||
       (m.genre && selectedGenres.includes(m.genre));
 
-    // Language filter (multi-select)
     const matchesLanguage =
       selectedLanguages.length === 0 ||
       (m.language && selectedLanguages.includes(m.language));
 
-    // Minimum rating filter
     const matchesRating =
       minRating === null || (m.rating != null && m.rating >= minRating);
 
@@ -53,7 +59,6 @@ export default function Movies() {
 
   const clearSearch = () => setSearchTerm("");
 
-  // Toggle helpers for multi-select filters
   const toggleGenre = (genre) => {
     setSelectedGenres((prev) =>
       prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
@@ -70,7 +75,6 @@ export default function Movies() {
     setMinRating((prev) => (prev === rating ? null : rating));
   };
 
-  // Clear everything
   const clearAllFilters = () => {
     setSearchTerm("");
     setSelectedGenres([]);
@@ -126,7 +130,6 @@ export default function Movies() {
             )}
           </div>
 
-          {/* Genre chips */}
           {allGenres.length > 0 && (
             <div className="filter-group">
               <span className="filter-group-label">Genre</span>
@@ -144,7 +147,6 @@ export default function Movies() {
             </div>
           )}
 
-          {/* Language chips */}
           {allLanguages.length > 0 && (
             <div className="filter-group">
               <span className="filter-group-label">Language</span>
@@ -162,7 +164,6 @@ export default function Movies() {
             </div>
           )}
 
-          {/* Minimum Rating */}
           <div className="filter-group">
             <span className="filter-group-label">Min Rating</span>
             <div className="chip-row">
@@ -196,32 +197,32 @@ export default function Movies() {
             </div>
           )}
           <div className="movie-grid">
-          {filteredMovies.map((m) => (
-            <article
-              key={m.id}
-              className="movie-card"
-              onClick={() => navigate(`/seats/${m.id}`)}
-            >
-              <div className="poster">
-                {m.poster_url ? (
-                  <img src={m.poster_url} alt={m.title} loading="lazy" />
-                ) : (
-                  <div className="poster-placeholder">{m.title}</div>
-                )}
-                {m.rating != null && <span className="rating">★ {m.rating}</span>}
-              </div>
-              <div className="movie-info">
-                <h3>{m.title}</h3>
-                <p className="meta">
-                  {[m.genre, m.language, m.duration_minutes && `${m.duration_minutes} min`]
-                    .filter(Boolean)
-                    .join(" • ")}
-                </p>
-                <p className="price">${Number(m.price).toFixed(2)} / seat</p>
-                <button className="primary-btn small">Book Now</button>
-              </div>
-            </article>
-          ))}
+            {filteredMovies.map((m) => (
+              <article
+                key={m.id}
+                className="movie-card"
+                onClick={() => handleBook(m.id)}
+              >
+                <div className="poster">
+                  {m.poster_url ? (
+                    <img src={m.poster_url} alt={m.title} loading="lazy" />
+                  ) : (
+                    <div className="poster-placeholder">{m.title}</div>
+                  )}
+                  {m.rating != null && <span className="rating">★ {m.rating}</span>}
+                </div>
+                <div className="movie-info">
+                  <h3>{m.title}</h3>
+                  <p className="meta">
+                    {[m.genre, m.language, m.duration_minutes && `${m.duration_minutes} min`]
+                      .filter(Boolean)
+                      .join(" • ")}
+                  </p>
+                  <p className="price">${Number(m.price).toFixed(2)} / seat</p>
+                  <button className="primary-btn small">Book Now</button>
+                </div>
+              </article>
+            ))}
           </div>
         </>
       )}

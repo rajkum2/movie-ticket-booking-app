@@ -1,39 +1,73 @@
 """Movie Ticket Booking API.
 
-A small FastAPI service backed by Supabase (Postgres). No authentication —
-the admin view is just an unguarded endpoint that lists all bookings.
+FastAPI service backed by Supabase (Postgres). Now with auth + roles.
 
-Endpoints
----------
-GET  /                                  health check
-GET  /movies                            list all movies
-GET  /movies/{movie_id}                 single movie
-GET  /movies/{movie_id}/seats           booked seats for a movie + showtime
-POST /bookings                          create a booking (dummy payment)
-GET  /bookings                          list all bookings (admin)
+Auth
+----
+* POST /auth/login        -> { token, user }
+* POST /auth/register     -> create a normal user
+* POST /auth/logout       -> invalidate current session
+* GET  /auth/me           -> current user
+
+Movies
+------
+* GET  /movies            (public)
+* GET  /movies/{id}       (public)
+* POST /movies            (admin)
+* PUT  /movies/{id}       (admin)
+* DELETE /movies/{id}     (admin)
+
+Seats / bookings
+----------------
+* GET  /movies/{id}/seats?showtime=... (public)
+* POST /bookings           (user)   - attaches caller as user_id
+* GET  /bookings           (admin)  - all bookings
+* GET  /bookings/me        (user)   - current user's bookings
+
+Users (admin-only)
+------------------
+* GET  /users
+* POST /users
+* PUT  /users/{id}
+* DELETE /users/{id}
 """
+import logging
 import os
-from typing import List
+from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from auth import (
+    get_current_user,
+    hash_password,
+    new_session_token,
+    public_user,
+    require_admin,
+    verify_password,
+)
 from database import get_supabase
 from models import (
     Booking,
     BookingCreate,
+    LoginRequest,
+    LoginResponse,
     Movie,
+    MovieCreate,
+    MovieUpdate,
     SeatAvailability,
+    User,
+    UserCreate,
+    UserUpdate,
 )
 
-app = FastAPI(title="Movie Ticket Booking API", version="1.0.0")
+log = logging.getLogger("uvicorn.error")
 
-# CORS — allow the Vercel frontend (and local dev) to call this API.
-# Set ALLOWED_ORIGINS as a comma-separated list on Railway, e.g.
-#   https://my-app.vercel.app,http://localhost:5173
+app = FastAPI(title="Movie Ticket Booking API", version="2.0.0")
+
+# CORS
 allowed = os.environ.get("ALLOWED_ORIGINS", "*")
 origins = ["*"] if allowed.strip() == "*" else [o.strip() for o in allowed.split(",")]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -43,11 +77,117 @@ app.add_middleware(
 )
 
 
+# ---------------------------------------------------------------------------
+# Startup: ensure two demo accounts exist with known passwords.
+# ---------------------------------------------------------------------------
+DEMO_ACCOUNTS = [
+    {
+        "email": "admin@cinebook.test",
+        "password": "admin123",
+        "full_name": "Admin User",
+        "role": "admin",
+    },
+    {
+        "email": "user@cinebook.test",
+        "password": "user123",
+        "full_name": "Demo User",
+        "role": "user",
+    },
+]
+
+
+@app.on_event("startup")
+def seed_demo_users() -> None:
+    sb = get_supabase()
+    try:
+        existing = sb.table("users").select("email").execute().data or []
+    except Exception as exc:  # table missing, bad creds — log but don't crash
+        log.warning("Could not check users table at startup: %s", exc)
+        return
+    existing_emails = {r["email"] for r in existing}
+    for acct in DEMO_ACCOUNTS:
+        if acct["email"] in existing_emails:
+            continue
+        sb.table("users").insert(
+            {
+                "email": acct["email"],
+                "password_hash": hash_password(acct["password"]),
+                "full_name": acct["full_name"],
+                "role": acct["role"],
+            }
+        ).execute()
+        log.info("Seeded demo %s account: %s", acct["role"], acct["email"])
+
+
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
 @app.get("/")
 def health():
     return {"status": "ok", "service": "movie-ticket-booking-api"}
 
 
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+@app.post("/auth/login", response_model=LoginResponse)
+def login(payload: LoginRequest):
+    sb = get_supabase()
+    res = (
+        sb.table("users").select("*").eq("email", payload.email.lower()).limit(1).execute()
+    )
+    if not res.data or not verify_password(payload.password, res.data[0]["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    user = res.data[0]
+    token = new_session_token()
+    sb.table("users").update({"session_token": token}).eq("id", user["id"]).execute()
+    return {"token": token, "user": public_user(user)}
+
+
+@app.post("/auth/register", response_model=LoginResponse, status_code=201)
+def register(payload: UserCreate):
+    """Self-register a normal user. Role is forced to 'user'."""
+    sb = get_supabase()
+    email = payload.email.lower()
+    existing = sb.table("users").select("id").eq("email", email).limit(1).execute()
+    if existing.data:
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    token = new_session_token()
+    insert = (
+        sb.table("users")
+        .insert(
+            {
+                "email": email,
+                "password_hash": hash_password(payload.password),
+                "full_name": payload.full_name,
+                "role": "user",
+                "session_token": token,
+            }
+        )
+        .execute()
+    )
+    if not insert.data:
+        raise HTTPException(status_code=500, detail="Failed to create user")
+    return {"token": token, "user": public_user(insert.data[0])}
+
+
+@app.post("/auth/logout")
+def logout(user: dict = Depends(get_current_user)):
+    sb = get_supabase()
+    sb.table("users").update({"session_token": None}).eq("id", user["id"]).execute()
+    return {"status": "ok"}
+
+
+@app.get("/auth/me", response_model=User)
+def me(user: dict = Depends(get_current_user)):
+    return public_user(user)
+
+
+# ---------------------------------------------------------------------------
+# Movies
+# ---------------------------------------------------------------------------
 @app.get("/movies", response_model=List[Movie])
 def list_movies():
     sb = get_supabase()
@@ -64,9 +204,41 @@ def get_movie(movie_id: int):
     return res.data[0]
 
 
+@app.post("/movies", response_model=Movie, status_code=201)
+def create_movie(payload: MovieCreate, _: dict = Depends(require_admin)):
+    sb = get_supabase()
+    insert = sb.table("movies").insert(payload.model_dump()).execute()
+    if not insert.data:
+        raise HTTPException(status_code=500, detail="Failed to create movie")
+    return insert.data[0]
+
+
+@app.put("/movies/{movie_id}", response_model=Movie)
+def update_movie(
+    movie_id: int, payload: MovieUpdate, _: dict = Depends(require_admin)
+):
+    sb = get_supabase()
+    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    res = sb.table("movies").update(updates).eq("id", movie_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    return res.data[0]
+
+
+@app.delete("/movies/{movie_id}", status_code=204)
+def delete_movie(movie_id: int, _: dict = Depends(require_admin)):
+    sb = get_supabase()
+    sb.table("movies").delete().eq("id", movie_id).execute()
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Seats / bookings
+# ---------------------------------------------------------------------------
 @app.get("/movies/{movie_id}/seats", response_model=SeatAvailability)
 def get_seat_availability(movie_id: int, showtime: str = Query(...)):
-    """Return the set of already-booked seats for a movie + showtime."""
     sb = get_supabase()
     res = (
         sb.table("bookings")
@@ -84,7 +256,7 @@ def get_seat_availability(movie_id: int, showtime: str = Query(...)):
 
 
 @app.post("/bookings", response_model=Booking, status_code=201)
-def create_booking(payload: BookingCreate):
+def create_booking(payload: BookingCreate, user: dict = Depends(get_current_user)):
     sb = get_supabase()
 
     movie_res = sb.table("movies").select("*").eq("id", payload.movie_id).execute()
@@ -95,7 +267,6 @@ def create_booking(payload: BookingCreate):
     if payload.showtime not in (movie.get("showtimes") or []):
         raise HTTPException(status_code=400, detail="Invalid showtime for this movie")
 
-    # Guard against double-booking: re-check current availability.
     existing = (
         sb.table("bookings")
         .select("seats")
@@ -120,12 +291,13 @@ def create_booking(payload: BookingCreate):
         .insert(
             {
                 "movie_id": payload.movie_id,
+                "user_id": user["id"],
                 "showtime": payload.showtime,
                 "customer_name": payload.customer_name,
                 "customer_email": payload.customer_email,
                 "seats": payload.seats,
                 "total_amount": total,
-                "payment_status": "PAID",  # dummy payment is always successful
+                "payment_status": "PAID",
             }
         )
         .execute()
@@ -138,55 +310,109 @@ def create_booking(payload: BookingCreate):
     return booking
 
 
-@app.get("/bookings", response_model=List[Booking])
-def list_bookings():
-    """Admin view: every booking, newest first, with movie titles attached."""
-    sb = get_supabase()
-    res = sb.table("bookings").select("*").order("created_at", desc=True).execute()
-    bookings = res.data or []
-
-    # Attach movie titles in one round-trip.
+def _attach_movie_titles(sb, bookings: List[dict]) -> List[dict]:
     movie_ids = list({b["movie_id"] for b in bookings})
-    titles = {}
+    titles: dict = {}
     if movie_ids:
         m_res = sb.table("movies").select("id,title").in_("id", movie_ids).execute()
         titles = {m["id"]: m["title"] for m in (m_res.data or [])}
-
     for b in bookings:
         b["movie_title"] = titles.get(b["movie_id"])
     return bookings
 
 
-# =====================
-# Movie Management Endpoints (for dashboard)
-# =====================
-
-@app.post("/movies", response_model=Movie, status_code=201)
-def create_movie(movie: Movie):
-    """Add a new movie (used by Manage Movies dashboard)."""
+@app.get("/bookings", response_model=List[Booking])
+def list_bookings(_: dict = Depends(require_admin)):
+    """Admin: every booking, newest first."""
     sb = get_supabase()
-    data = movie.model_dump(exclude={"id"})  # id is auto-generated
-    res = sb.table("movies").insert(data).execute()
+    res = sb.table("bookings").select("*").order("created_at", desc=True).execute()
+    return _attach_movie_titles(sb, res.data or [])
+
+
+@app.get("/bookings/me", response_model=List[Booking])
+def list_my_bookings(user: dict = Depends(get_current_user)):
+    sb = get_supabase()
+    res = (
+        sb.table("bookings")
+        .select("*")
+        .eq("user_id", user["id"])
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return _attach_movie_titles(sb, res.data or [])
+
+
+# ---------------------------------------------------------------------------
+# Users (admin)
+# ---------------------------------------------------------------------------
+@app.get("/users", response_model=List[User])
+def list_users(_: dict = Depends(require_admin)):
+    sb = get_supabase()
+    res = sb.table("users").select("*").order("id").execute()
+    return [public_user(u) for u in (res.data or [])]
+
+
+@app.post("/users", response_model=User, status_code=201)
+def create_user(payload: UserCreate, _: dict = Depends(require_admin)):
+    sb = get_supabase()
+    email = payload.email.lower()
+    existing = sb.table("users").select("id").eq("email", email).limit(1).execute()
+    if existing.data:
+        raise HTTPException(status_code=409, detail="Email already registered")
+    insert = (
+        sb.table("users")
+        .insert(
+            {
+                "email": email,
+                "password_hash": hash_password(payload.password),
+                "full_name": payload.full_name,
+                "role": payload.role,
+            }
+        )
+        .execute()
+    )
+    if not insert.data:
+        raise HTTPException(status_code=500, detail="Failed to create user")
+    return public_user(insert.data[0])
+
+
+@app.put("/users/{user_id}", response_model=User)
+def update_user(
+    user_id: int, payload: UserUpdate, admin: dict = Depends(require_admin)
+):
+    sb = get_supabase()
+    updates: dict = {}
+    if payload.email is not None:
+        updates["email"] = payload.email.lower()
+    if payload.full_name is not None:
+        updates["full_name"] = payload.full_name
+    if payload.role is not None:
+        updates["role"] = payload.role
+    if payload.password is not None:
+        updates["password_hash"] = hash_password(payload.password)
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    if (
+        payload.role is not None
+        and user_id == admin["id"]
+        and payload.role != "admin"
+    ):
+        raise HTTPException(
+            status_code=400, detail="You cannot demote yourself from admin"
+        )
+
+    res = sb.table("users").update(updates).eq("id", user_id).execute()
     if not res.data:
-        raise HTTPException(status_code=500, detail="Failed to create movie")
-    return res.data[0]
+        raise HTTPException(status_code=404, detail="User not found")
+    return public_user(res.data[0])
 
 
-@app.put("/movies/{movie_id}", response_model=Movie)
-def update_movie(movie_id: int, movie: Movie):
-    """Update an existing movie (title, price, poster, etc.)."""
+@app.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: int, admin: dict = Depends(require_admin)):
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
     sb = get_supabase()
-    data = movie.model_dump(exclude={"id"})
-    res = sb.table("movies").update(data).eq("id", movie_id).execute()
-    if not res.data:
-        raise HTTPException(status_code=404, detail="Movie not found")
-    return res.data[0]
-
-
-@app.delete("/movies/{movie_id}", status_code=204)
-def delete_movie(movie_id: int):
-    """Delete a movie."""
-    sb = get_supabase()
-    res = sb.table("movies").delete().eq("id", movie_id).execute()
-    # We don't raise if not found — idempotent delete is fine
-    return
+    sb.table("users").delete().eq("id", user_id).execute()
+    return None

@@ -649,8 +649,9 @@ body {
   justify-content: flex-end;
 }
 
-/* Modal */
-.modal-overlay {
+/* Modal (shared by MovieManager and admin dashboard tabs) */
+.modal-overlay,
+.modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
@@ -658,6 +659,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 100;
+  padding: 20px;
 }
 
 .modal {
@@ -670,6 +672,222 @@ body {
   max-height: 90vh;
   overflow-y: auto;
 }
+.modal h3 {
+  margin: 0 0 16px;
+}
+.modal label {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.modal input,
+.modal select,
+.modal textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-family: inherit;
+}
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.modal .demo-note {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 0 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+.modal-actions .link-btn {
+  margin-bottom: 0;
+}
+
+/* ---------- Header nav / auth chip ---------- */
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.header-nav .link-btn {
+  margin-bottom: 0;
+}
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 12px;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.role-tag {
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+.role-tag.role-admin {
+  background: rgba(229, 9, 20, 0.15);
+  color: var(--accent);
+}
+.role-tag.role-user {
+  background: rgba(46, 204, 113, 0.15);
+  color: var(--green);
+}
+
+/* ---------- Auth pages ---------- */
+.auth-page {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+}
+.auth-card h1 {
+  margin: 0 0 4px;
+}
+.auth-card .sub {
+  color: var(--muted);
+  margin: 0 0 20px;
+  font-size: 0.92rem;
+}
+.auth-card label {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.auth-card input,
+.auth-card select,
+.auth-card textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+.auth-card input:focus,
+.auth-card select:focus,
+.auth-card textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.auth-card .primary-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+.auth-foot {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 18px 0 0;
+}
+.auth-foot a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.auth-foot a:hover {
+  text-decoration: underline;
+}
+.demo-creds {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.demo-creds .demo-note {
+  margin: 0 0 8px;
+}
+.demo-creds .link-btn {
+  font-size: 0.82rem;
+  font-family: "Menlo", "Consolas", monospace;
+}
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin: 12px 0 24px;
+}
+.tab {
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 12px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 0.95rem;
+}
+.tab:hover {
+  color: var(--text);
+}
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* ---------- Admin tab UI ---------- */
+.row-gap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.row-gap .link-btn {
+  margin-bottom: 0;
+}
+.row-actions {
+  display: flex;
+  gap: 12px;
+}
+.row-actions .link-btn {
+  margin-bottom: 0;
+}
+.link-btn.danger {
+  color: var(--accent);
+}
+.link-btn.danger:hover {
+  color: var(--accent-hover);
+}
+.link-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 
 /* ---------- Responsive ---------- */
 @media (max-width: 720px) {
@@ -703,5 +921,12 @@ body {
 
   .filters {
     padding: 14px 14px 10px;
+  }
+
+  .header-nav {
+    gap: 8px;
+  }
+  .user-chip {
+    display: none;
   }
 }

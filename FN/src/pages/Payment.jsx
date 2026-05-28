@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createBooking } from "../api";
+import { useAuth } from "../auth.jsx";
 
 export default function Payment() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const { user } = useAuth();
+  const [name, setName] = useState(user?.full_name || "");
+  const [email, setEmail] = useState(user?.email || "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 

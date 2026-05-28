@@ -1,5 +1,6 @@
 -- Run this in the Supabase SQL Editor (Dashboard > SQL Editor > New query).
--- It creates the two tables and inserts 4 classic sample movies.
+-- It creates the tables, inserts a few sample movies, and the backend seeds
+-- two demo users on startup.
 --
 -- For 115+ additional diverse movies (great for search/filter testing),
 -- also run `seed-movies.sql` after this file.
@@ -20,9 +21,20 @@ create table if not exists movies (
     showtimes        jsonb   not null default '[]'::jsonb
 );
 
+create table if not exists users (
+    id              bigint generated always as identity primary key,
+    email           text    not null unique,
+    password_hash   text    not null,
+    full_name       text,
+    role            text    not null default 'user' check (role in ('admin', 'user')),
+    session_token   text    unique,
+    created_at      timestamptz not null default now()
+);
+
 create table if not exists bookings (
     id              bigint generated always as identity primary key,
     movie_id        bigint not null references movies(id) on delete cascade,
+    user_id         bigint references users(id) on delete set null,
     showtime        text   not null,
     customer_name   text   not null,
     customer_email  text   not null,
@@ -32,8 +44,13 @@ create table if not exists bookings (
     created_at      timestamptz not null default now()
 );
 
+-- If bookings already existed without user_id, add the column.
+alter table bookings add column if not exists user_id bigint references users(id) on delete set null;
+
 create index if not exists idx_bookings_movie_showtime
     on bookings (movie_id, showtime);
+create index if not exists idx_bookings_user on bookings (user_id);
+create index if not exists idx_users_token on users (session_token);
 
 -- ---------------------------------------------------------------------------
 -- Sample movies
@@ -68,3 +85,16 @@ values
     'Animation', 'Japanese', 125, 8.5, 11.50,
     '["12:00 PM", "04:00 PM", "07:30 PM"]'::jsonb
   );
+
+-- ---------------------------------------------------------------------------
+-- Demo users
+--
+-- The backend seeds two demo accounts on startup (with proper bcrypt hashes),
+-- so you do not need to insert them here:
+--
+--   admin@cinebook.test   /  admin123    (role: admin)
+--   user@cinebook.test    /  user123     (role: user)
+--
+-- If you'd rather create more users, POST to /auth/register (creates a normal
+-- user) or have an admin call POST /users.
+-- ---------------------------------------------------------------------------
