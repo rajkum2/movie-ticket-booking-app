@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMovies, createMovie, updateMovie, deleteMovie } from "../api";
+import { getMovies, createMovie, updateMovie, deleteMovie, uploadPoster } from "../api";
 
 export default function MovieManager() {
   const navigate = useNavigate();
@@ -10,6 +10,24 @@ export default function MovieManager() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingMovie, setEditingMovie] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
+  const handlePosterFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const { url } = await uploadPoster(file);
+      setFormData((prev) => ({ ...prev, poster_url: url }));
+    } catch (err) {
+      setUploadError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -242,15 +260,37 @@ export default function MovieManager() {
                   />
                 </label>
 
-                <label>
-                  Poster URL
-                  <input
-                    type="text"
-                    value={formData.poster_url}
-                    onChange={(e) => setFormData({ ...formData, poster_url: e.target.value })}
-                    placeholder="https://..."
-                  />
-                </label>
+                <div className="poster-field" style={{ gridColumn: "1 / -1" }}>
+                  <label>
+                    Poster image (upload)
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handlePosterFile}
+                      disabled={uploading}
+                    />
+                  </label>
+                  <label>
+                    …or paste a URL
+                    <input
+                      type="text"
+                      value={formData.poster_url}
+                      onChange={(e) =>
+                        setFormData({ ...formData, poster_url: e.target.value })
+                      }
+                      placeholder="https://..."
+                    />
+                  </label>
+                  {uploading && <p className="status">Uploading…</p>}
+                  {uploadError && (
+                    <p className="status error">⚠️ {uploadError}</p>
+                  )}
+                  {!uploading && formData.poster_url && (
+                    <div className="poster-preview">
+                      <img src={formData.poster_url} alt="Poster preview" />
+                    </div>
+                  )}
+                </div>
 
                 <label>
                   Genre

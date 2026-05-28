@@ -73,6 +73,31 @@ export const createBooking = (payload) =>
 export const getBookings = () => request("/bookings");
 export const getMyBookings = () => request("/bookings/me");
 
+// ---- Uploads (admin) ----
+export async function uploadPoster(file) {
+  const token = getToken();
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${API_URL}/uploads/poster`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  });
+  if (!res.ok) {
+    let detail = `Upload failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json(); // { url, key }
+}
+
 // ---- Users (admin) ----
 export const getUsers = () => request("/users");
 export const createUser = (payload) =>

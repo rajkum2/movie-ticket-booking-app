@@ -35,7 +35,7 @@ import logging
 import os
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth import (
@@ -47,6 +47,7 @@ from auth import (
     verify_password,
 )
 from database import get_supabase
+from storage import ALLOWED_CONTENT_TYPES, MAX_POSTER_BYTES, upload_poster
 from models import (
     Booking,
     BookingCreate,
@@ -244,6 +245,41 @@ def delete_movie(movie_id: int, _: dict = Depends(require_admin)):
     sb = get_supabase()
     sb.table("movies").delete().eq("id", movie_id).execute()
     return None
+
+
+# ---------------------------------------------------------------------------
+# Uploads (admin) — Cloudflare R2 via S3-compatible API
+# ---------------------------------------------------------------------------
+@app.post("/uploads/poster")
+async def upload_movie_poster(
+    file: UploadFile = File(...),
+    _: dict = Depends(require_admin),
+):
+    """Upload a movie poster image to R2 and return its public URL."""
+    if file.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type. Allowed: {', '.join(ALLOWED_CONTENT_TYPES)}",
+        )
+    data = await file.read()
+    if len(data) > MAX_POSTER_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large (max {MAX_POSTER_BYTES // (1024 * 1024)} MB)",
+        )
+    if len(data) == 0:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    try:
+        url, key = upload_poster(data, file.content_type)
+    except RuntimeError as exc:  # missing env var
+        log.error("R2 not configured: %s", exc)
+        raise HTTPException(status_code=503, detail="Storage not configured") from exc
+    except Exception as exc:
+        log.exception("Poster upload failed")
+        raise HTTPException(status_code=502, detail="Upload to R2 failed") from exc
+
+    return {"url": url, "key": key}
 
 
 # ---------------------------------------------------------------------------

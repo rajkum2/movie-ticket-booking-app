@@ -720,6 +720,48 @@ body {
   margin-bottom: 0;
 }
 
+/* ---------- Poster upload field ---------- */
+.poster-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.poster-field label {
+  margin-bottom: 4px;
+}
+.poster-field input[type="file"] {
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+}
+.poster-field input[type="file"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.poster-field .status {
+  padding: 4px 0;
+  text-align: left;
+}
+.poster-preview {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  width: 140px;
+  aspect-ratio: 2 / 3;
+  background: var(--surface-2);
+}
+.poster-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 /* ---------- Header nav / auth chip ---------- */
 .header-nav {
   display: flex;

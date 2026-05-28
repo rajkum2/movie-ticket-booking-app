@@ -4,6 +4,7 @@ import {
   deleteMovie,
   getMovies,
   updateMovie,
+  uploadPoster,
 } from "../../api";
 
 const EMPTY = {
@@ -60,6 +61,23 @@ export default function MoviesTab() {
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handlePosterFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    setUploading(true);
+    setFormError(null);
+    try {
+      const { url } = await uploadPoster(file);
+      setForm((prev) => ({ ...prev, poster_url: url }));
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const load = () => {
     setLoading(true);
@@ -211,15 +229,36 @@ export default function MoviesTab() {
                 onChange={onChange("description")}
               />
             </label>
-            <label>
-              Poster URL
-              <input
-                type="url"
-                value={form.poster_url}
-                onChange={onChange("poster_url")}
-                placeholder="https://…"
-              />
-            </label>
+            <div className="poster-field">
+              <label>
+                Poster image
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handlePosterFile}
+                  disabled={uploading}
+                />
+              </label>
+              <label>
+                …or paste a URL
+                <input
+                  type="url"
+                  value={form.poster_url}
+                  onChange={onChange("poster_url")}
+                  placeholder="https://…"
+                />
+              </label>
+              {uploading && (
+                <p className="status" style={{ padding: "8px 0" }}>
+                  Uploading…
+                </p>
+              )}
+              {!uploading && form.poster_url && (
+                <div className="poster-preview">
+                  <img src={form.poster_url} alt="Poster preview" />
+                </div>
+              )}
+            </div>
             <div className="row-2">
               <label>
                 Genre
@@ -288,7 +327,11 @@ export default function MoviesTab() {
               <button type="button" className="link-btn" onClick={cancel}>
                 Cancel
               </button>
-              <button type="submit" className="primary-btn small" disabled={busy}>
+              <button
+                type="submit"
+                className="primary-btn small"
+                disabled={busy || uploading}
+              >
                 {busy ? "Saving…" : "Save"}
               </button>
             </div>
