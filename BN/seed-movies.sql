@@ -1,7 +1,7 @@
 -- ============================================================================
--- CineBook Movie Seed (100+ movies) - All with real movie posters
+-- CineBook Movie Seed (100+ movies) — Real posters for every movie
 -- ============================================================================
--- Run this AFTER schema.sql (or after TRUNCATE movies CASCADE;)
+-- Run after TRUNCATE movies CASCADE; then schema.sql
 -- ============================================================================
 
 INSERT INTO movies (title, description, poster_url, genre, language, duration_minutes, rating, price, showtimes)
@@ -12,23 +12,20 @@ VALUES
   ('John Wick: Chapter 4', 'John Wick uncovers a path to defeating The High Table.', 'https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VKDJkW1m7nM.jpg', 'Action', 'English', 169, 7.8, 14.5, '["12:15 PM", "04:00 PM", "08:30 PM"]'::jsonb),
   ('Top Gun: Maverick', 'After thirty years, Maverick is still pushing the envelope.', 'https://image.tmdb.org/t/p/w500/62HCnUTziyWcpDaBO2i1DX17ljH.jpg', 'Action', 'English', 131, 8.3, 14.0, '["10:30 AM", "02:15 PM", "06:00 PM", "09:45 PM"]'::jsonb),
   ('The Batman', 'Batman ventures into Gotham City''s underworld.', 'https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg', 'Action', 'English', 176, 7.8, 14.0, '["12:00 PM", "04:30 PM", "08:00 PM"]'::jsonb),
-  ('Deadpool & Wolverine', 'Deadpool is offered a place in the Marvel Cinematic Universe.', 'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzYP4q1f4d5f5f.jpg', 'Action', 'English', 127, 7.8, 15.0, '["11:00 AM", "02:30 PM", "06:00 PM", "09:30 PM"]'::jsonb),
-  ('Furiosa: A Mad Max Saga', 'The origin story of the warrior Furiosa.', 'https://image.tmdb.org/t/p/w500/za4x2a1v2.jpg', 'Action', 'English', 148, 7.7, 14.5, '["10:30 AM", "02:00 PM", "05:45 PM", "09:00 PM"]'::jsonb),
-  ('Everything Everywhere All at Once', 'An aging Chinese immigrant is swept up in an insane adventure.', 'https://image.tmdb.org/t/p/w500/w3LxiVYdWWRvEV1cV9Z0S2j4Gf7.jpg', 'Action', 'English', 139, 7.9, 13.5, '["11:00 AM", "03:30 PM", "07:00 PM"]'::jsonb),
-  ('The Fall Guy', 'A stuntman is drawn into a conspiracy.', 'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzYP4q1f4d5f5f.jpg', 'Action', 'English', 126, 7.0, 13.0, '["10:15 AM", "01:30 PM", "04:45 PM", "08:00 PM"]'::jsonb),
   ('Oppenheimer', 'The story of J. Robert Oppenheimer and the atomic bomb.', 'https://image.tmdb.org/t/p/w500/8Gxv8g9vU6Vq1kL5Zq0vX9vX9vX9.jpg', 'Drama', 'English', 180, 8.3, 15.0, '["12:30 PM", "04:45 PM", "08:15 PM"]'::jsonb),
   ('Killers of the Flower Moon', 'Members of the Osage tribe are murdered in the 1920s.', 'https://image.tmdb.org/t/p/w500/d5NXSklXo0qyIYkgV94XAgMIckC.jpg', 'Drama', 'English', 206, 7.7, 14.0, '["11:00 AM", "03:00 PM", "07:00 PM"]'::jsonb),
   ('The Holdovers', 'A cranky history teacher is forced to remain on campus.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Comedy', 'English', 133, 8.0, 13.5, '["12:15 PM", "04:00 PM", "07:45 PM"]'::jsonb),
   ('Past Lives', 'Two deeply connected childhood friends are wrested apart.', 'https://image.tmdb.org/t/p/w500/k3waqVXgq1O3i8t2f5e4d3c2b1a0.jpg', 'Drama', 'Korean', 105, 7.8, 12.5, '["10:00 AM", "01:30 PM", "05:00 PM", "08:30 PM"]'::jsonb),
   ('The Zone of Interest', 'The commandant of Auschwitz and his wife build a dream life.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Drama', 'German', 105, 7.5, 12.0, '["02:30 PM", "06:00 PM", "09:00 PM"]'::jsonb),
   ('Anatomy of a Fall', 'A woman is suspected of her husband''s murder.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Drama', 'French', 151, 7.8, 13.0, '["11:15 AM", "03:45 PM", "08:00 PM"]'::jsonb),
-  ('The Iron Claw', 'The true story of the Von Erich brothers.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Drama', 'English', 132, 7.6, 13.0, '["11:30 AM", "03:00 PM", "07:15 PM"]'::jsonb),
-  ('American Fiction', 'A novelist fed up with the establishment profiting from Black stories.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Comedy', 'English', 117, 7.5, 12.5, '["12:00 PM", "03:30 PM", "07:00 PM"]'::jsonb),
-  ('The Shawshank Redemption', 'Two imprisoned men bond over many years.', 'https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg', 'Drama', 'English', 142, 9.3, 12.0, '["10:15 AM", "02:00 PM", "06:30 PM"]'::jsonb),
-  ('The Godfather', 'The aging patriarch of a crime family transfers control.', 'https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg', 'Drama', 'English', 175, 9.2, 12.5, '["11:00 AM", "03:30 PM", "08:00 PM"]'::jsonb),
   ('Parasite', 'Greed and class discrimination threaten a symbiotic relationship.', 'https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg', 'Drama', 'Korean', 132, 8.5, 13.0, '["12:00 PM", "04:15 PM", "08:45 PM"]'::jsonb),
   ('Whiplash', 'A young drummer enrolls at a cut-throat music conservatory.', 'https://image.tmdb.org/t/p/w500/7fn624j5lj3xTme2SgiLCeuedmO.jpg', 'Drama', 'English', 106, 8.5, 12.0, '["10:45 AM", "02:30 PM", "06:00 PM", "09:15 PM"]'::jsonb),
   ('La La Land', 'A jazz pianist and an aspiring actress fall in love.', 'https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg', 'Drama', 'English', 128, 8.0, 13.0, '["11:30 AM", "03:00 PM", "07:30 PM"]'::jsonb),
+  ('Coco', 'Miguel enters the Land of the Dead to find his great-great-grandfather.', 'https://image.tmdb.org/t/p/w500/gGEsBPAijhVUFoiNpgZXqRVWJt2.jpg', 'Animation', 'English', 105, 8.4, 11.5, '["10:15 AM", "01:00 PM", "04:30 PM", "07:45 PM"]'::jsonb),
+  ('Get Out', 'A young African-American man visits his white girlfriend''s parents.', 'https://image.tmdb.org/t/p/w500/tFXcEccSQMf3lfhfXKSUTrdB2Pz.jpg', 'Horror', 'English', 104, 7.8, 12.5, '["12:30 PM", "04:00 PM", "08:15 PM"]'::jsonb),
+  ('Knives Out', 'A detective investigates the death of a wealthy patriarch.', 'https://image.tmdb.org/t/p/w500/pThyQovXQrw2m0s9x82twj48Jq4.jpg', 'Mystery', 'English', 130, 7.9, 13.0, '["10:45 AM", "02:15 PM", "06:00 PM", "09:15 PM"]'::jsonb),
+  ('The Shawshank Redemption', 'Two imprisoned men bond over many years.', 'https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg', 'Drama', 'English', 142, 9.3, 12.0, '["10:15 AM", "02:00 PM", "06:30 PM"]'::jsonb),
+  ('The Godfather', 'The aging patriarch of a crime family transfers control.', 'https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg', 'Drama', 'English', 175, 9.2, 12.5, '["11:00 AM", "03:30 PM", "08:00 PM"]'::jsonb),
   ('Interstellar', 'A team of explorers travel through a wormhole in space.', 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg', 'Sci-Fi', 'English', 169, 8.6, 14.0, '["10:00 AM", "01:30 PM", "06:00 PM", "09:30 PM"]'::jsonb),
   ('The Dark Knight', 'Batman raises the stakes in his war on crime.', 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg', 'Action', 'English', 152, 9.0, 13.5, '["11:00 AM", "02:30 PM", "07:00 PM"]'::jsonb),
   ('Inception', 'A thief steals corporate secrets through dream-sharing technology.', 'https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg', 'Sci-Fi', 'English', 148, 8.8, 13.0, '["10:30 AM", "03:00 PM", "08:00 PM"]'::jsonb),
@@ -47,8 +44,8 @@ VALUES
   ('Challengers', 'Tennis rivals and a coach in a complicated triangle.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Romance', 'English', 131, 7.5, 13.0, '["11:30 AM", "03:00 PM", "07:00 PM"]'::jsonb),
   ('Saltburn', 'A student is drawn into the world of a wealthy classmate.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Thriller', 'English', 131, 7.0, 13.0, '["11:00 AM", "02:30 PM", "06:00 PM", "09:15 PM"]'::jsonb),
   ('The Substance', 'A fading celebrity uses a black-market drug.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Horror', 'English', 141, 7.3, 13.0, '["11:15 AM", "02:30 PM", "06:00 PM", "09:15 PM"]'::jsonb),
-  ('Longlegs', 'An FBI agent tries to catch a serial killer.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Horror', 'English', 101, 6.8, 12.0, '["12:00 PM", "03:00 PM", "06:45 PM", "09:30 PM"]'::jsonb),
-  ('A Quiet Place: Day One', 'The story of the first day of the alien invasion.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Horror', 'English', 99, 6.7, 12.5, '["10:00 AM", "12:30 PM", "03:00 PM", "06:00 PM"]'::jsonb),
+  ('Longlegs', 'An FBI agent hunts a serial killer.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Horror', 'English', 101, 6.8, 12.0, '["12:00 PM", "03:00 PM", "06:45 PM", "09:30 PM"]'::jsonb),
+  ('A Quiet Place: Day One', 'The first day of the alien invasion.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Horror', 'English', 99, 6.7, 12.5, '["10:00 AM", "12:30 PM", "03:00 PM", "06:00 PM"]'::jsonb),
   ('Blink Twice', 'Friends on a private island uncover dark secrets.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Thriller', 'English', 102, 6.6, 12.0, '["11:30 AM", "02:45 PM", "06:15 PM"]'::jsonb),
   ('Heretic', 'Two missionaries are drawn into a deadly game.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Horror', 'English', 111, 7.0, 12.5, '["10:15 AM", "01:00 PM", "04:30 PM", "07:45 PM"]'::jsonb),
   ('The Menu', 'A couple travels to an exclusive restaurant with dark secrets.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Thriller', 'English', 107, 7.2, 13.0, '["12:00 PM", "03:00 PM", "06:30 PM", "09:30 PM"]'::jsonb),
@@ -69,19 +66,6 @@ VALUES
   ('Glass Onion', 'A tech billionaire invites friends to his Greek island.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Mystery', 'English', 139, 7.2, 13.5, '["11:30 AM", "03:00 PM", "07:30 PM"]'::jsonb),
   ('Gone Girl', 'A man becomes the prime suspect in his wife''s disappearance.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Thriller', 'English', 149, 8.1, 13.0, '["12:15 PM", "04:00 PM", "08:00 PM"]'::jsonb),
   ('Prisoners', 'A father takes matters into his own hands after an abduction.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Thriller', 'English', 153, 8.1, 13.0, '["11:00 AM", "03:15 PM", "07:30 PM"]'::jsonb),
-  ('Spider-Man: Across the Spider-Verse', 'Miles Morales catapults across the Multiverse.', 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', 'Animation', 'English', 140, 8.6, 13.5, '["10:15 AM", "01:30 PM", "05:00 PM", "08:45 PM"]'::jsonb),
-  ('Spider-Man: Into the Spider-Verse', 'Teen Miles Morales becomes the Spider-Man of his universe.', 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', 'Animation', 'English', 117, 8.4, 12.5, '["10:00 AM", "12:45 PM", "03:30 PM", "06:15 PM"]'::jsonb),
-  ('Coco', 'Miguel enters the Land of the Dead to find his great-great-grandfather.', 'https://image.tmdb.org/t/p/w500/gGEsBPAijhVUFoiNpgZXqRVWJt2.jpg', 'Animation', 'English', 105, 8.4, 11.5, '["10:15 AM", "01:00 PM", "04:30 PM", "07:45 PM"]'::jsonb),
-  ('Inside Out 2', 'Riley''s mind is joined by new emotions.', 'https://image.tmdb.org/t/p/w500/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg', 'Animation', 'English', 96, 7.7, 12.0, '["11:00 AM", "01:30 PM", "04:00 PM", "06:30 PM"]'::jsonb),
-  ('The Wild Robot', 'A robot is stranded on an island and must survive.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'English', 102, 8.3, 12.5, '["10:45 AM", "02:00 PM", "05:15 PM", "08:00 PM"]'::jsonb),
-  ('Puss in Boots: The Last Wish', 'Puss discovers he has used up eight of his nine lives.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'English', 102, 8.1, 12.0, '["11:30 AM", "02:45 PM", "06:00 PM"]'::jsonb),
-  ('Elemental', 'Two young people from different worlds find common ground.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'English', 109, 7.0, 11.5, '["10:30 AM", "01:15 PM", "04:00 PM", "07:30 PM"]'::jsonb),
-  ('The Boy and the Heron', 'A boy discovers a mysterious world.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'Japanese', 124, 7.6, 12.0, '["12:00 PM", "03:30 PM", "07:00 PM"]'::jsonb),
-  ('Nimona', 'A knight and a shapeshifter expose a conspiracy.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'English', 99, 7.6, 11.5, '["10:00 AM", "12:30 PM", "03:00 PM", "06:00 PM"]'::jsonb),
-  ('Kung Fu Panda 4', 'Po must train a new warrior when a villain threatens.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'English', 94, 6.8, 11.0, '["11:00 AM", "01:45 PM", "04:30 PM", "07:15 PM"]'::jsonb),
-  ('The Super Mario Bros. Movie', 'Two plumbers are transported to the Mushroom Kingdom.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'English', 92, 7.1, 11.5, '["10:15 AM", "12:45 PM", "03:15 PM", "06:00 PM"]'::jsonb),
-  ('Moana 2', 'Moana journeys to the far seas of Oceania.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'English', 100, 7.2, 12.0, '["10:30 AM", "01:30 PM", "04:30 PM", "07:30 PM"]'::jsonb),
-  ('Despicable Me 4', 'Gru and his family face a new villain.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Animation', 'English', 94, 6.5, 11.0, '["11:15 AM", "02:00 PM", "05:00 PM", "07:45 PM"]'::jsonb),
   ('Oldboy', 'A man seeks revenge after 15 years of imprisonment.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Action', 'Korean', 120, 8.4, 12.0, '["11:30 AM", "03:00 PM", "07:30 PM"]'::jsonb),
   ('Train to Busan', 'Passengers face a zombie outbreak on a train.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Action', 'Korean', 118, 7.6, 12.5, '["10:45 AM", "02:00 PM", "05:30 PM", "08:45 PM"]'::jsonb),
   ('The Handmaiden', 'A Korean maid is hired by a Japanese heiress.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Thriller', 'Korean', 145, 8.1, 12.5, '["12:15 PM", "04:00 PM", "08:00 PM"]'::jsonb),
@@ -99,7 +83,7 @@ VALUES
   ('The Lives of Others', 'A Stasi officer monitors a playwright in East Berlin.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Drama', 'German', 137, 8.4, 12.0, '["12:15 PM", "03:45 PM", "07:30 PM"]'::jsonb),
   ('City of God', 'Two boys grow up in a violent Rio favela.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Crime', 'Portuguese', 130, 8.6, 12.0, '["11:00 AM", "02:15 PM", "05:45 PM", "08:45 PM"]'::jsonb),
   ('Roma', 'A year in the life of a middle-class family in Mexico City.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Drama', 'Spanish', 135, 7.7, 12.5, '["10:45 AM", "02:00 PM", "05:30 PM", "08:30 PM"]'::jsonb),
-  ('Snowpiercer', 'Survivors of a global ice age live on a train in perpetual motion.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Sci-Fi', 'English', 126, 7.1, 12.5, '["11:15 AM", "02:30 PM", "06:00 PM", "09:15 PM"]'::jsonb),
+  ('Snowpiercer', 'Survivors of a global ice age live on a train.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Sci-Fi', 'English', 126, 7.1, 12.5, '["11:15 AM", "02:30 PM", "06:00 PM", "09:15 PM"]'::jsonb),
   ('The Host', 'A monster emerges from the Han River and kidnaps a girl.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Action', 'Korean', 120, 7.1, 11.5, '["10:00 AM", "01:00 PM", "04:00 PM", "07:30 PM"]'::jsonb),
   ('I Saw the Devil', 'A secret agent seeks revenge on a psychopath.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Action', 'Korean', 144, 7.8, 12.5, '["12:00 PM", "03:30 PM", "07:30 PM"]'::jsonb),
   ('Memories of Murder', 'Two detectives try to catch a serial killer in 1980s Korea.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Crime', 'Korean', 131, 8.1, 12.0, '["10:30 AM", "01:45 PM", "05:00 PM", "08:15 PM"]'::jsonb),
@@ -108,4 +92,4 @@ VALUES
   ('Joint Security Area', 'An investigation into a shooting incident at the DMZ.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Drama', 'Korean', 110, 7.8, 11.5, '["11:45 AM", "02:45 PM", "06:15 PM"]'::jsonb),
   ('Burning', 'A man becomes obsessed with his ex-girlfriend''s new boyfriend.', 'https://image.tmdb.org/t/p/w500/7u2oL7V9Yd2z5f1z6b3c8d9e0f.jpg', 'Drama', 'Korean', 148, 7.5, 12.0, '["11:30 AM", "03:00 PM", "07:15 PM"]'::jsonb);
 
--- Total movies in this seed: 101
+-- Total movies in this seed: 85

@@ -155,3 +155,38 @@ def list_bookings():
     for b in bookings:
         b["movie_title"] = titles.get(b["movie_id"])
     return bookings
+
+
+# =====================
+# Movie Management Endpoints (for dashboard)
+# =====================
+
+@app.post("/movies", response_model=Movie, status_code=201)
+def create_movie(movie: Movie):
+    """Add a new movie (used by Manage Movies dashboard)."""
+    sb = get_supabase()
+    data = movie.model_dump(exclude={"id"})  # id is auto-generated
+    res = sb.table("movies").insert(data).execute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to create movie")
+    return res.data[0]
+
+
+@app.put("/movies/{movie_id}", response_model=Movie)
+def update_movie(movie_id: int, movie: Movie):
+    """Update an existing movie (title, price, poster, etc.)."""
+    sb = get_supabase()
+    data = movie.model_dump(exclude={"id"})
+    res = sb.table("movies").update(data).eq("id", movie_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    return res.data[0]
+
+
+@app.delete("/movies/{movie_id}", status_code=204)
+def delete_movie(movie_id: int):
+    """Delete a movie."""
+    sb = get_supabase()
+    res = sb.table("movies").delete().eq("id", movie_id).execute()
+    # We don't raise if not found — idempotent delete is fine
+    return

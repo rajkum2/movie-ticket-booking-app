@@ -34,3 +34,13 @@ export const createBooking = (payload) =>
   request("/bookings", { method: "POST", body: JSON.stringify(payload) });
 
 export const getBookings = () => request("/bookings");
+
+// Movie Management (for dashboard)
+export const createMovie = (payload) =>
+  request("/movies", { method: "POST", body: JSON.stringify(payload) });
+
+export const updateMovie = (id, payload) =>
+  request(`/movies/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+
+export const deleteMovie = (id) =>
+  request(`/movies/${id}`, { method: "DELETE" });

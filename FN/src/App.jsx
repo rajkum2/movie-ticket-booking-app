@@ -4,6 +4,7 @@ import SeatSelection from "./pages/SeatSelection.jsx";
 import Payment from "./pages/Payment.jsx";
 import Confirmation from "./pages/Confirmation.jsx";
 import Admin from "./pages/Admin.jsx";
+import MovieManager from "./pages/MovieManager.jsx";
 
 function Header() {
   const navigate = useNavigate();
@@ -12,9 +13,14 @@ function Header() {
       <Link to="/" className="brand">
         🎬 CineBook
       </Link>
-      <button className="admin-btn" onClick={() => navigate("/admin")}>
-        Admin
-      </button>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button className="admin-btn" onClick={() => navigate("/manage")}>
+          Manage Movies
+        </button>
+        <button className="admin-btn" onClick={() => navigate("/admin")}>
+          Admin
+        </button>
+      </div>
     </header>
   );
 }
@@ -30,6 +36,7 @@ export default function App() {
           <Route path="/payment" element={<Payment />} />
           <Route path="/confirmation" element={<Confirmation />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/manage" element={<MovieManager />} />
         </Routes>
       </main>
     </div>
