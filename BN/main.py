@@ -9,9 +9,6 @@ GET  /                                  health check
 GET  /movies                            list all movies
 GET  /movies/{movie_id}                 single movie
 GET  /movies/{movie_id}/seats           booked seats for a movie + showtime
-POST /movies                            create movie (admin dashboard)
-PUT  /movies/{movie_id}                 update movie (admin dashboard)
-DELETE /movies/{movie_id}               delete movie (admin dashboard)
 POST /bookings                          create a booking (dummy payment)
 GET  /bookings                          list all bookings (admin)
 """
@@ -26,8 +23,6 @@ from models import (
     Booking,
     BookingCreate,
     Movie,
-    MovieCreate,
-    MovieUpdate,
     SeatAvailability,
 )
 
@@ -167,10 +162,10 @@ def list_bookings():
 # =====================
 
 @app.post("/movies", response_model=Movie, status_code=201)
-def create_movie(movie: MovieCreate):
+def create_movie(movie: Movie):
     """Add a new movie (used by Manage Movies dashboard)."""
     sb = get_supabase()
-    data = movie.model_dump()
+    data = movie.model_dump(exclude={"id"})  # id is auto-generated
     res = sb.table("movies").insert(data).execute()
     if not res.data:
         raise HTTPException(status_code=500, detail="Failed to create movie")
@@ -178,12 +173,10 @@ def create_movie(movie: MovieCreate):
 
 
 @app.put("/movies/{movie_id}", response_model=Movie)
-def update_movie(movie_id: int, movie: MovieUpdate):
-    """Update an existing movie (title, price, poster, etc.). Only non-null fields are updated."""
+def update_movie(movie_id: int, movie: Movie):
+    """Update an existing movie (title, price, poster, etc.)."""
     sb = get_supabase()
-    data = {k: v for k, v in movie.model_dump().items() if v is not None}
-    if not data:
-        raise HTTPException(status_code=400, detail="No fields to update")
+    data = movie.model_dump(exclude={"id"})
     res = sb.table("movies").update(data).eq("id", movie_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Movie not found")

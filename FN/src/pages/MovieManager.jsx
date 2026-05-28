@@ -10,7 +10,6 @@ export default function MovieManager() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingMovie, setEditingMovie] = useState(null);
-  const [success, setSuccess] = useState("");
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -25,8 +24,6 @@ export default function MovieManager() {
 
   const loadMovies = () => {
     setLoading(true);
-    setError(null);
-    setSuccess("");
     getMovies()
       .then(setMovies)
       .catch((e) => setError(e.message))
@@ -39,8 +36,6 @@ export default function MovieManager() {
 
   const openAddForm = () => {
     setEditingMovie(null);
-    setError(null);
-    setSuccess("");
     setFormData({
       title: "",
       description: "",
@@ -57,8 +52,6 @@ export default function MovieManager() {
 
   const openEditForm = (movie) => {
     setEditingMovie(movie);
-    setError(null);
-    setSuccess("");
     setFormData({
       title: movie.title,
       description: movie.description || "",
@@ -76,7 +69,6 @@ export default function MovieManager() {
   const closeForm = () => {
     setShowForm(false);
     setEditingMovie(null);
-    setError(null);
   };
 
   const handleSubmit = async (e) => {
@@ -106,15 +98,11 @@ export default function MovieManager() {
     try {
       if (editingMovie) {
         await updateMovie(editingMovie.id, payload);
-        setSuccess(`"${payload.title}" updated successfully.`);
       } else {
         await createMovie(payload);
-        setSuccess(`"${payload.title}" added successfully.`);
       }
       closeForm();
       loadMovies();
-      // Auto-clear success after a few seconds
-      setTimeout(() => setSuccess(""), 2800);
     } catch (e) {
       setError(e.message);
     }
@@ -125,24 +113,18 @@ export default function MovieManager() {
 
     try {
       await deleteMovie(movie.id);
-      setSuccess(`"${movie.title}" deleted.`);
       loadMovies();
-      setTimeout(() => setSuccess(""), 2800);
     } catch (e) {
       setError(e.message);
     }
   };
 
   const handleQuickPriceChange = async (movie, newPrice) => {
-    const newPriceNum = parseFloat(newPrice);
-    if (Number.isNaN(newPriceNum) || newPriceNum === movie.price) return;
     try {
-      await updateMovie(movie.id, { price: newPriceNum });
-      setSuccess(`Price for "${movie.title}" updated to $${newPriceNum.toFixed(2)}.`);
+      await updateMovie(movie.id, { ...movie, price: parseFloat(newPrice) });
       loadMovies();
-      setTimeout(() => setSuccess(""), 2200);
     } catch (e) {
-      setError("Failed to update price: " + e.message);
+      alert("Failed to update price: " + e.message);
     }
   };
 
@@ -152,16 +134,13 @@ export default function MovieManager() {
         <button className="link-btn" onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <h1 className="page-title">
-          Movie Manager <span className="muted-count">({movies.length})</span>
-        </h1>
+        <h1 className="page-title">Movie Manager</h1>
         <button className="primary-btn" onClick={openAddForm}>
           + Add New Movie
         </button>
       </div>
 
       {error && <p className="status error">⚠️ {error}</p>}
-      {success && <p className="status success">✅ {success}</p>}
 
       {loading ? (
         <p className="status">Loading movies…</p>

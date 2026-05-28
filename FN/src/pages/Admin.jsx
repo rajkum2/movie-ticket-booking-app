@@ -30,14 +30,9 @@ export default function Admin() {
       </button>
       <div className="admin-head">
         <h1 className="page-title">Admin — Bookings</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="primary-btn small" onClick={() => navigate("/manage")}>
-            🎬 Manage Movies
-          </button>
-          <button className="primary-btn small" onClick={load}>
-            Refresh
-          </button>
-        </div>
+        <button className="primary-btn small" onClick={load}>
+          Refresh
+        </button>
       </div>
 
       {!loading && !error && (
