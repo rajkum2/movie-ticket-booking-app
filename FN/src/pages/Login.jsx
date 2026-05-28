@@ -70,16 +70,16 @@ export default function Login() {
           <button
             type="button"
             className="link-btn"
-            onClick={() => fill("admin@cinebook.test", "admin123")}
+            onClick={() => fill("admin@cinebook.com", "admin123")}
           >
-            Admin → admin@cinebook.test / admin123
+            Admin → admin@cinebook.com / admin123
           </button>
           <button
             type="button"
             className="link-btn"
-            onClick={() => fill("user@cinebook.test", "user123")}
+            onClick={() => fill("user@cinebook.com", "user123")}
           >
-            User → user@cinebook.test / user123
+            User → user@cinebook.com / user123
           </button>
         </div>
 

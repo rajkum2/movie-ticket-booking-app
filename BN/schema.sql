@@ -92,8 +92,8 @@ values
 -- The backend seeds two demo accounts on startup (with proper bcrypt hashes),
 -- so you do not need to insert them here:
 --
---   admin@cinebook.test   /  admin123    (role: admin)
---   user@cinebook.test    /  user123     (role: user)
+--   admin@cinebook.app    /  admin123    (role: admin)
+--   user@cinebook.app     /  user123     (role: user)
 --
 -- If you'd rather create more users, POST to /auth/register (creates a normal
 -- user) or have an admin call POST /users.

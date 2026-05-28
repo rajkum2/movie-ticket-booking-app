@@ -82,18 +82,22 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 DEMO_ACCOUNTS = [
     {
-        "email": "admin@cinebook.test",
+        "email": "admin@cinebook.com",
         "password": "admin123",
         "full_name": "Admin User",
         "role": "admin",
     },
     {
-        "email": "user@cinebook.test",
+        "email": "user@cinebook.com",
         "password": "user123",
         "full_name": "Demo User",
         "role": "user",
     },
 ]
+
+# Old demo emails used a reserved `.test` TLD that Pydantic's EmailStr rejects.
+# Clean them up on startup so they don't sit around un-loginable.
+LEGACY_DEMO_EMAILS = ["admin@cinebook.test", "user@cinebook.test"]
 
 
 @app.on_event("startup")
@@ -104,7 +108,15 @@ def seed_demo_users() -> None:
     except Exception as exc:  # table missing, bad creds — log but don't crash
         log.warning("Could not check users table at startup: %s", exc)
         return
+
+    # Remove any legacy demo accounts created with the reserved `.test` TLD.
     existing_emails = {r["email"] for r in existing}
+    legacy_present = [e for e in LEGACY_DEMO_EMAILS if e in existing_emails]
+    if legacy_present:
+        sb.table("users").delete().in_("email", legacy_present).execute()
+        log.info("Removed legacy demo accounts: %s", ", ".join(legacy_present))
+        existing_emails -= set(legacy_present)
+
     for acct in DEMO_ACCOUNTS:
         if acct["email"] in existing_emails:
             continue
