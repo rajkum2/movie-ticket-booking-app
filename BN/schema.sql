@@ -18,8 +18,12 @@ create table if not exists movies (
     duration_minutes int,
     rating           numeric(2,1),
     price            numeric(8,2) not null default 12.00,
-    showtimes        jsonb   not null default '[]'::jsonb
+    showtimes        jsonb   not null default '[]'::jsonb,
+    trailer_url      text
 );
+
+-- If the movies table predates trailer_url, add the column.
+alter table movies add column if not exists trailer_url text;
 
 create table if not exists users (
     id              bigint generated always as identity primary key,

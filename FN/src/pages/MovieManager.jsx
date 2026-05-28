@@ -32,6 +32,7 @@ export default function MovieManager() {
     title: "",
     description: "",
     poster_url: "",
+    trailer_url: "",
     genre: "",
     language: "",
     duration_minutes: "",
@@ -58,6 +59,7 @@ export default function MovieManager() {
       title: "",
       description: "",
       poster_url: "",
+      trailer_url: "",
       genre: "",
       language: "",
       duration_minutes: "",
@@ -74,6 +76,7 @@ export default function MovieManager() {
       title: movie.title,
       description: movie.description || "",
       poster_url: movie.poster_url || "",
+      trailer_url: movie.trailer_url || "",
       genre: movie.genre || "",
       language: movie.language || "",
       duration_minutes: movie.duration_minutes || "",
@@ -105,6 +108,7 @@ export default function MovieManager() {
       title: formData.title,
       description: formData.description,
       poster_url: formData.poster_url,
+      trailer_url: formData.trailer_url || null,
       genre: formData.genre,
       language: formData.language,
       duration_minutes: parseInt(formData.duration_minutes) || null,
@@ -291,6 +295,18 @@ export default function MovieManager() {
                     </div>
                   )}
                 </div>
+
+                <label style={{ gridColumn: "1 / -1" }}>
+                  Trailer URL (YouTube)
+                  <input
+                    type="url"
+                    value={formData.trailer_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, trailer_url: e.target.value })
+                    }
+                    placeholder="https://www.youtube.com/watch?v=..."
+                  />
+                </label>
 
                 <label>
                   Genre

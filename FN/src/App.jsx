@@ -5,6 +5,7 @@ import Payment from "./pages/Payment.jsx";
 import Confirmation from "./pages/Confirmation.jsx";
 import Admin from "./pages/Admin.jsx";
 import MovieManager from "./pages/MovieManager.jsx";
+import MovieDetails from "./pages/MovieDetails.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
@@ -67,6 +68,7 @@ export default function App() {
       <main className="app-main">
         <Routes>
           <Route path="/" element={<Movies />} />
+          <Route path="/movies/:movieId" element={<MovieDetails />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route

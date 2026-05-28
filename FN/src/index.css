@@ -762,6 +762,142 @@ body {
   display: block;
 }
 
+/* ---------- Movie details page ---------- */
+.movie-details {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.details-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+.details-poster {
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-2);
+  aspect-ratio: 2 / 3;
+}
+.details-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.details-title {
+  margin: 0 0 6px;
+  font-size: 2rem;
+  line-height: 1.15;
+}
+.details-body h3 {
+  margin: 22px 0 8px;
+  font-size: 1.05rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.details-description {
+  color: var(--text);
+  line-height: 1.55;
+  margin: 0;
+}
+.details-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+.rating-pill,
+.price-pill {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.rating-pill {
+  color: #ffd166;
+}
+.price-pill {
+  color: var(--green);
+}
+.details-cta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 22px;
+}
+.details-cta .link-btn {
+  margin-bottom: 0;
+}
+
+.trailer-section h2 {
+  margin: 0 0 14px;
+  font-size: 1.3rem;
+}
+.trailer-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.trailer-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.trailer-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.trailer-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+.trailer-poster:hover img {
+  opacity: 1;
+}
+.trailer-poster .play-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--accent);
+  color: #fff;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s, background 0.15s;
+}
+.trailer-poster:hover .play-overlay {
+  transform: translate(-50%, -50%) scale(1.08);
+  background: var(--accent-hover);
+}
+
 /* ---------- Header nav / auth chip ---------- */
 .header-nav {
   display: flex;
@@ -970,5 +1106,12 @@ body {
   }
   .user-chip {
     display: none;
+  }
+  .details-layout {
+    grid-template-columns: 1fr;
+  }
+  .details-poster {
+    max-width: 240px;
+    margin: 0 auto;
   }
 }

@@ -14,7 +14,10 @@ export default function Movies() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const handleBook = (id) => {
+  const openDetails = (id) => navigate(`/movies/${id}`);
+
+  const handleBook = (id, e) => {
+    e?.stopPropagation();
     if (!user) {
       navigate("/login", { state: { from: { pathname: `/seats/${id}` } } });
     } else {
@@ -201,7 +204,7 @@ export default function Movies() {
               <article
                 key={m.id}
                 className="movie-card"
-                onClick={() => handleBook(m.id)}
+                onClick={() => openDetails(m.id)}
               >
                 <div className="poster">
                   {m.poster_url ? (
@@ -219,7 +222,12 @@ export default function Movies() {
                       .join(" • ")}
                   </p>
                   <p className="price">${Number(m.price).toFixed(2)} / seat</p>
-                  <button className="primary-btn small">Book Now</button>
+                  <button
+                    className="primary-btn small"
+                    onClick={(e) => handleBook(m.id, e)}
+                  >
+                    Book Now
+                  </button>
                 </div>
               </article>
             ))}

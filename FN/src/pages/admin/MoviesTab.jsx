@@ -11,6 +11,7 @@ const EMPTY = {
   title: "",
   description: "",
   poster_url: "",
+  trailer_url: "",
   genre: "",
   language: "",
   duration_minutes: "",
@@ -24,6 +25,7 @@ function toPayload(form) {
     title: form.title.trim(),
     description: form.description.trim() || null,
     poster_url: form.poster_url.trim() || null,
+    trailer_url: form.trailer_url.trim() || null,
     genre: form.genre.trim() || null,
     language: form.language.trim() || null,
     duration_minutes: form.duration_minutes
@@ -43,6 +45,7 @@ function fromMovie(m) {
     title: m.title || "",
     description: m.description || "",
     poster_url: m.poster_url || "",
+    trailer_url: m.trailer_url || "",
     genre: m.genre || "",
     language: m.language || "",
     duration_minutes: m.duration_minutes ?? "",
@@ -259,6 +262,15 @@ export default function MoviesTab() {
                 </div>
               )}
             </div>
+            <label>
+              Trailer URL (YouTube)
+              <input
+                type="url"
+                value={form.trailer_url}
+                onChange={onChange("trailer_url")}
+                placeholder="https://www.youtube.com/watch?v=…"
+              />
+            </label>
             <div className="row-2">
               <label>
                 Genre

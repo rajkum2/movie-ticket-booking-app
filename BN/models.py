@@ -13,6 +13,7 @@ class Movie(BaseModel):
     title: str
     description: Optional[str] = None
     poster_url: Optional[str] = None
+    trailer_url: Optional[str] = None
     genre: Optional[str] = None
     language: Optional[str] = None
     duration_minutes: Optional[int] = None
@@ -25,6 +26,7 @@ class MovieCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
     poster_url: Optional[str] = None
+    trailer_url: Optional[str] = None
     genre: Optional[str] = None
     language: Optional[str] = None
     duration_minutes: Optional[int] = Field(default=None, ge=1, le=600)
@@ -37,6 +39,7 @@ class MovieUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=200)
     description: Optional[str] = None
     poster_url: Optional[str] = None
+    trailer_url: Optional[str] = None
     genre: Optional[str] = None
     language: Optional[str] = None
     duration_minutes: Optional[int] = Field(default=None, ge=1, le=600)
