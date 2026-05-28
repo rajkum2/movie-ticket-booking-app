@@ -70,6 +70,11 @@ body {
   font-size: 1.8rem;
   margin: 12px 0 24px;
 }
+.muted-count {
+  font-size: 1rem;
+  color: var(--muted);
+  font-weight: 400;
+}
 
 /* ---------- Search bar ---------- */
 .search-bar {
@@ -223,6 +228,13 @@ body {
 }
 .status.error {
   color: var(--accent);
+}
+.status.success {
+  color: var(--green);
+  background: rgba(46, 204, 113, 0.1);
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin: 12px 0;
 }
 
 .card {

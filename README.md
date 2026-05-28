@@ -1,8 +1,13 @@
 # 🎬 CineBook — Movie Ticket Booking App
 
 A full-stack movie ticket booking app. Browse movies, pick a showtime and seats,
-"pay" (dummy), and get a confirmation. An **Admin** button lists every booking.
-No user authentication.
+"pay" (dummy), and get a confirmation.
+
+**Admin Dashboard included:**
+- **Manage Movies** (`/manage`) — Full CRUD: add new movies, edit any field (including poster + showtimes as JSON), quick inline price edits, and delete.
+- **Admin** (`/admin`) — View all bookings + revenue + seats sold stats.
+
+No user authentication (open admin tools for demo purposes).
 
 ```
 movie-ticket-booking-app/

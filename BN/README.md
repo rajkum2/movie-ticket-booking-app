@@ -45,6 +45,9 @@ API runs at http://localhost:8000 — interactive docs at http://localhost:8000/
 | GET    | `/movies/{id}/seats?showtime=` | Booked seats for a movie + showtime  |
 | POST   | `/bookings`                | Create a booking (always "PAID")         |
 | GET    | `/bookings`                | List all bookings (admin view)           |
+| POST   | `/movies`                  | Create a movie (admin dashboard)         |
+| PUT    | `/movies/{id}`             | Update a movie (admin dashboard)         |
+| DELETE | `/movies/{id}`             | Delete a movie (admin dashboard)         |
 
 `POST /bookings` body:
 
