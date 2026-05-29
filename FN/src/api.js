@@ -104,6 +104,14 @@ export async function uploadPoster(file) {
   return res.json(); // { url, key }
 }
 
+// ---- Natural-language search ----
+// Returns { title_contains?, genres?, languages?, min_rating? }
+export const parseSearchQuery = (query) =>
+  request("/search/parse", {
+    method: "POST",
+    body: JSON.stringify({ query }),
+  });
+
 // ---- AI Summariser ----
 // Async generator that yields chunks of text from the streaming endpoint.
 export async function* streamSummary(movieId) {

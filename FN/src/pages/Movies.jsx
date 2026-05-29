@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getMovies } from "../api";
 import { useAuth } from "../auth.jsx";
+import VoiceSearchButton from "../components/VoiceSearchButton.jsx";
 
 export default function Movies() {
   const [movies, setMovies] = useState([]);
@@ -12,6 +13,7 @@ export default function Movies() {
   const [minRating, setMinRating] = useState(null); // null = no filter, or a number like 8
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [voiceHeard, setVoiceHeard] = useState(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -84,6 +86,15 @@ export default function Movies() {
     setSelectedGenres([]);
     setSelectedLanguages([]);
     setMinRating(null);
+    setVoiceHeard(null);
+  };
+
+  const applyVoiceFilters = (filters, transcript) => {
+    setVoiceHeard(transcript);
+    setSearchTerm(filters.title_contains || "");
+    setSelectedGenres(filters.genres || []);
+    setSelectedLanguages(filters.languages || []);
+    setMinRating(filters.min_rating ?? null);
   };
 
   const hasActiveFilters =
@@ -100,27 +111,35 @@ export default function Movies() {
     <section>
       <h1 className="page-title">Browse movies</h1>
 
-      {/* Search box */}
-      <div className="search-bar">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search movies..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          aria-label="Search movies"
-        />
-        {searchTerm && (
-          <button
-            type="button"
-            className="search-clear"
-            onClick={clearSearch}
-            aria-label="Clear search"
-          >
-            ×
-          </button>
-        )}
+      {/* Search box + voice */}
+      <div className="search-row">
+        <div className="search-bar">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search movies... or try the mic"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search movies"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              className="search-clear"
+              onClick={clearSearch}
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <VoiceSearchButton onParsed={applyVoiceFilters} />
       </div>
+      {voiceHeard && (
+        <p className="voice-heard">
+          Heard: <em>“{voiceHeard}”</em>
+        </p>
+      )}
 
       {/* Filters */}
       {(allGenres.length > 0 || allLanguages.length > 0) && (

@@ -51,6 +51,7 @@ from auth import (
 from database import get_supabase
 from storage import ALLOWED_CONTENT_TYPES, MAX_POSTER_BYTES, upload_poster
 from summariser import stream_summary
+from search import SearchFilters, SearchQuery, parse_query
 from models import (
     Booking,
     BookingCreate,
@@ -357,6 +358,21 @@ def summarise_movie(movie_id: int, _: dict = Depends(get_current_user)):
             log.warning("Could not cache summary for movie %s: %s", movie_id, exc)
 
     return StreamingResponse(generate(), media_type="text/plain")
+
+
+# ---------------------------------------------------------------------------
+# Natural-language search parser — turns a typed/spoken query into filters
+# ---------------------------------------------------------------------------
+@app.post("/search/parse", response_model=SearchFilters)
+def parse_search(payload: SearchQuery):
+    try:
+        return parse_query(payload.query)
+    except RuntimeError as exc:  # DEEPSEEK_API_KEY missing
+        log.error("DeepSeek not configured: %s", exc)
+        raise HTTPException(status_code=503, detail="Search parser not configured")
+    except Exception as exc:
+        log.exception("Search parse failed")
+        raise HTTPException(status_code=502, detail="Could not parse query") from exc
 
 
 # ---------------------------------------------------------------------------
