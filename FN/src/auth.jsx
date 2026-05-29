@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import * as api from "./api";
+import { supabase, supabaseConfigured } from "./supabaseClient";
 
 const AuthContext = createContext(null);
 const USER_KEY = "cinebook.user";
+
+export const googleEnabled = supabaseConfigured;
 
 function loadStoredUser() {
   try {
@@ -65,8 +68,40 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const signInWithGoogle = async () => {
+    if (!supabase) {
+      throw new Error("Google sign-in is not configured");
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw new Error(error.message);
+    // The browser is now redirecting to Google; nothing more to do here.
+  };
+
+  const finishGoogleSignIn = async () => {
+    if (!supabase) throw new Error("Google sign-in is not configured");
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw new Error(error.message);
+    if (!data.session?.access_token) {
+      throw new Error("No Supabase session found in callback");
+    }
+    const { token, user: u } = await api.googleExchange(data.session.access_token);
+    api.setToken(token);
+    localStorage.setItem(USER_KEY, JSON.stringify(u));
+    setUser(u);
+    // Drop the supabase session — we only needed it for the exchange.
+    await supabase.auth.signOut();
+    return u;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, ready, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{ user, ready, signIn, signUp, signOut, signInWithGoogle, finishGoogleSignIn }}
+    >
       {children}
     </AuthContext.Provider>
   );

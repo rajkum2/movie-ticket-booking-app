@@ -11,7 +11,9 @@ import MovieManager from "./pages/MovieManager.jsx";
 import MovieDetails from "./pages/MovieDetails.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
+import AuthCallback from "./pages/AuthCallback.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
+import Summariser from "./pages/Summariser.jsx";
 import { RequireAuth, useAuth } from "./auth.jsx";
 
 function Header() {
@@ -61,6 +63,11 @@ function Header() {
         <NavLink to="/browse" className="nx-nav-link">
           Browse
         </NavLink>
+        {user && (
+          <NavLink to="/summariser" className="nx-nav-link">
+            AI Summariser
+          </NavLink>
+        )}
         {user && (
           <NavLink to="/my-bookings" className="nx-nav-link">
             My bookings
@@ -179,6 +186,7 @@ export default function App() {
           <Route path="/movies/:movieId" element={<MovieDetails />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route
             path="/seats/:movieId"
             element={
@@ -208,6 +216,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <MyBookings />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/summariser"
+            element={
+              <RequireAuth>
+                <Summariser />
               </RequireAuth>
             }
           />

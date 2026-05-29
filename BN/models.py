@@ -115,6 +115,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class GoogleLoginRequest(BaseModel):
+    access_token: str = Field(..., min_length=20)
+
+
 class LoginResponse(BaseModel):
     token: str
     user: User

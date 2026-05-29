@@ -26,6 +26,13 @@ create table if not exists movies (
 alter table movies add column if not exists trailer_url text;
 alter table movies add column if not exists backdrop_url text;
 
+-- Cache of AI-generated summaries (DeepSeek). Populated lazily on first request.
+alter table movies add column if not exists ai_summary text;
+
+-- OAuth users (e.g. Google sign-in) don't have a local password; make
+-- password_hash nullable so we can store them in the same table.
+alter table users alter column password_hash drop not null;
+
 create table if not exists users (
     id              bigint generated always as identity primary key,
     email           text    not null unique,

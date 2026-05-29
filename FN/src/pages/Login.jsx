@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth.jsx";
+import { googleEnabled, useAuth } from "../auth.jsx";
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = location.state?.from?.pathname || "/";
@@ -12,6 +12,19 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  const handleGoogle = async () => {
+    setError(null);
+    setGoogleBusy(true);
+    try {
+      await signInWithGoogle();
+      // Browser is being redirected — nothing more to do.
+    } catch (err) {
+      setError(err.message);
+      setGoogleBusy(false);
+    }
+  };
 
   const fill = (e, p) => {
     setEmail(e);
@@ -64,6 +77,21 @@ export default function Login() {
         <button className="primary-btn" type="submit" disabled={submitting}>
           {submitting ? "Signing in…" : "Sign in"}
         </button>
+
+        {googleEnabled && (
+          <>
+            <div className="auth-divider"><span>or</span></div>
+            <button
+              type="button"
+              className="google-btn"
+              onClick={handleGoogle}
+              disabled={googleBusy}
+            >
+              <span className="google-g" aria-hidden="true">G</span>
+              {googleBusy ? "Redirecting…" : "Continue with Google"}
+            </button>
+          </>
+        )}
 
         <div className="demo-creds">
           <p className="demo-note">Demo accounts</p>

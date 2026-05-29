@@ -6,6 +6,7 @@ Auth
 ----
 * POST /auth/login        -> { token, user }
 * POST /auth/register     -> create a normal user
+* POST /auth/google       -> exchange Supabase Google JWT for our session
 * POST /auth/logout       -> invalidate current session
 * GET  /auth/me           -> current user
 
@@ -37,6 +38,7 @@ from typing import List, Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from auth import (
     get_current_user,
@@ -48,9 +50,11 @@ from auth import (
 )
 from database import get_supabase
 from storage import ALLOWED_CONTENT_TYPES, MAX_POSTER_BYTES, upload_poster
+from summariser import stream_summary
 from models import (
     Booking,
     BookingCreate,
+    GoogleLoginRequest,
     LoginRequest,
     LoginResponse,
     Movie,
@@ -186,6 +190,62 @@ def register(payload: UserCreate):
     return {"token": token, "user": public_user(insert.data[0])}
 
 
+@app.post("/auth/google", response_model=LoginResponse)
+def google_login(payload: GoogleLoginRequest):
+    """Exchange a Supabase Google-OAuth JWT for one of our session tokens.
+
+    Flow: the browser completes Google OAuth via Supabase Auth, gets a JWT,
+    and sends it here. We validate it through supabase-py (which calls
+    /auth/v1/user), then upsert a row in our local users table so the rest
+    of the app (RBAC, bookings, etc.) keeps working unchanged.
+    """
+    sb = get_supabase()
+    try:
+        resp = sb.auth.get_user(payload.access_token)
+    except Exception as exc:
+        log.warning("Supabase JWT validation failed: %s", exc)
+        raise HTTPException(status_code=401, detail="Invalid Google session") from exc
+
+    su = getattr(resp, "user", None)
+    if not su or not su.email:
+        raise HTTPException(status_code=401, detail="Google session has no email")
+
+    email = su.email.lower()
+    full_name = (
+        (su.user_metadata or {}).get("full_name")
+        or (su.user_metadata or {}).get("name")
+    )
+
+    existing = sb.table("users").select("*").eq("email", email).limit(1).execute()
+    token = new_session_token()
+    if existing.data:
+        row = existing.data[0]
+        updates: dict = {"session_token": token}
+        if not row.get("full_name") and full_name:
+            updates["full_name"] = full_name
+        sb.table("users").update(updates).eq("id", row["id"]).execute()
+        row.update(updates)
+    else:
+        ins = (
+            sb.table("users")
+            .insert(
+                {
+                    "email": email,
+                    "password_hash": None,
+                    "full_name": full_name,
+                    "role": "user",
+                    "session_token": token,
+                }
+            )
+            .execute()
+        )
+        if not ins.data:
+            raise HTTPException(status_code=500, detail="Failed to provision user")
+        row = ins.data[0]
+
+    return {"token": token, "user": public_user(row)}
+
+
 @app.post("/auth/logout")
 def logout(user: dict = Depends(get_current_user)):
     sb = get_supabase()
@@ -245,6 +305,58 @@ def delete_movie(movie_id: int, _: dict = Depends(require_admin)):
     sb = get_supabase()
     sb.table("movies").delete().eq("id", movie_id).execute()
     return None
+
+
+# ---------------------------------------------------------------------------
+# AI Summariser — streams a DeepSeek-generated summary, caches on first call.
+# ---------------------------------------------------------------------------
+@app.post("/movies/{movie_id}/summarise")
+def summarise_movie(movie_id: int, _: dict = Depends(get_current_user)):
+    sb = get_supabase()
+    res = (
+        sb.table("movies")
+        .select("id,title,ai_summary")
+        .eq("id", movie_id)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    movie = res.data[0]
+
+    cached = (movie.get("ai_summary") or "").strip()
+    if cached:
+        # Replay the cached summary as a single stream chunk so the frontend
+        # can treat cached vs fresh responses identically.
+        def replay():
+            yield cached
+        return StreamingResponse(replay(), media_type="text/plain")
+
+    def generate():
+        collected: list[str] = []
+        try:
+            for delta in stream_summary(movie["title"]):
+                collected.append(delta)
+                yield delta
+        except RuntimeError as exc:  # missing API key
+            log.error("DeepSeek not configured: %s", exc)
+            yield "\n\n[Summariser is not configured on the server.]"
+            return
+        except Exception as exc:
+            log.exception("DeepSeek call failed")
+            yield f"\n\n[Error generating summary: {exc}]"
+            return
+
+        full = "".join(collected).strip()
+        if not full:
+            return
+        try:
+            sb.table("movies").update({"ai_summary": full}).eq(
+                "id", movie_id
+            ).execute()
+        except Exception as exc:
+            log.warning("Could not cache summary for movie %s: %s", movie_id, exc)
+
+    return StreamingResponse(generate(), media_type="text/plain")
 
 
 # ---------------------------------------------------------------------------

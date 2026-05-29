@@ -1,13 +1,25 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth.jsx";
+import { googleEnabled, useAuth } from "../auth.jsx";
 
 export default function Register() {
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ full_name: "", email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  const handleGoogle = async () => {
+    setError(null);
+    setGoogleBusy(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err.message);
+      setGoogleBusy(false);
+    }
+  };
 
   const onChange = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -67,6 +79,21 @@ export default function Register() {
         <button className="primary-btn" type="submit" disabled={submitting}>
           {submitting ? "Creating…" : "Create account"}
         </button>
+
+        {googleEnabled && (
+          <>
+            <div className="auth-divider"><span>or</span></div>
+            <button
+              type="button"
+              className="google-btn"
+              onClick={handleGoogle}
+              disabled={googleBusy}
+            >
+              <span className="google-g" aria-hidden="true">G</span>
+              {googleBusy ? "Redirecting…" : "Continue with Google"}
+            </button>
+          </>
+        )}
 
         <p className="auth-foot">
           Already have an account? <Link to="/login">Sign in</Link>
