@@ -17,6 +17,7 @@ from typing import List, Optional
 import httpx
 
 from database import get_supabase
+from observability import get_prompt
 
 
 log = logging.getLogger("uvicorn.error")
@@ -201,24 +202,19 @@ def retrieve(query: str, k: int = 5, threshold: float = 0.4) -> List[dict]:
     return chunks
 
 
-GROUNDING_PREAMBLE = (
-    "You are CineBot, a friendly movie-savvy assistant. The user has enabled "
-    "knowledge-base grounding. Use the CONTEXT below as your primary source. "
-    "When you state a fact that comes from a context entry, cite the document "
-    "title in square brackets like [Title]. If the context does not contain "
-    "the answer, you may use general knowledge but explicitly say "
-    "\"this isn't from the knowledge base\" so the user knows. Keep replies "
-    "concise unless the user asks for depth."
-)
+def build_rag_system_prompt(retrieved_chunks: List[dict]) -> tuple[str, Optional[object]]:
+    """Compose the system prompt for a RAG chat turn.
 
-
-def build_rag_system_prompt(retrieved_chunks: List[dict]) -> str:
+    Returns (text, prompt_object_or_None). The prompt object — when
+    available — should be passed as `langfuse_prompt=` to the OpenAI
+    wrapper so the trace is linked to the exact preamble version used.
+    """
+    preamble, prompt_obj = get_prompt("rag-grounding-preamble")
     if not retrieved_chunks:
-        return (
-            GROUNDING_PREAMBLE
-            + "\n\nCONTEXT:\n(No relevant entries found in the knowledge base.)"
+        body = "\n\nCONTEXT:\n(No relevant entries found in the knowledge base.)"
+    else:
+        context = "\n\n---\n\n".join(
+            f"[{c['document_title']}]\n{c['content']}" for c in retrieved_chunks
         )
-    context = "\n\n---\n\n".join(
-        f"[{c['document_title']}]\n{c['content']}" for c in retrieved_chunks
-    )
-    return f"{GROUNDING_PREAMBLE}\n\nCONTEXT:\n{context}"
+        body = f"\n\nCONTEXT:\n{context}"
+    return preamble + body, prompt_obj

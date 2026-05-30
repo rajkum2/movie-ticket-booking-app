@@ -1,8 +1,9 @@
 """DeepSeek-powered movie summariser.
 
-DeepSeek's API is OpenAI-compatible, so we use the `openai` SDK pointed at
-their base URL. We ask the model to summarise from its own knowledge of the
-film (by title), and stream the response as it arrives.
+DeepSeek's API is OpenAI-compatible, so we use the langfuse-wrapped OpenAI
+SDK pointed at their base URL. Importing OpenAI from `langfuse.openai`
+auto-traces every completion when Langfuse is configured; otherwise it
+behaves identically to the stock client.
 """
 from __future__ import annotations
 
@@ -10,19 +11,20 @@ import os
 from functools import lru_cache
 from typing import Iterator
 
-from openai import OpenAI
+from observability import get_prompt
+
+
+# Importing from langfuse.openai gives us the same OpenAI class with
+# automatic tracing. Falls back to the stock client when Langfuse keys
+# are unset — the wrapper handles that case internally.
+try:
+    from langfuse.openai import OpenAI  # type: ignore
+except Exception:  # pragma: no cover — defensive fallback
+    from openai import OpenAI  # type: ignore
 
 
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 DEEPSEEK_MODEL = "deepseek-chat"
-
-SYSTEM_PROMPT = (
-    "You are a knowledgeable film critic. Given a movie title, write a vivid, "
-    "engaging summary of about 180-220 words covering the premise, themes, "
-    "tone, notable performances or direction, and critical reception. Avoid "
-    "spoilers from the third act. If you do not recognise the title, say so "
-    "in one sentence rather than inventing a plot."
-)
 
 
 @lru_cache
@@ -36,14 +38,18 @@ def get_deepseek_client() -> OpenAI:
 def stream_summary(title: str) -> Iterator[str]:
     """Yield content deltas for a streaming chat completion."""
     client = get_deepseek_client()
-    response = client.chat.completions.create(
-        model=DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+    system_text, prompt_obj = get_prompt("summariser-system")
+    kwargs = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {"role": "system", "content": system_text},
             {"role": "user", "content": f"Summarise the movie: {title}"},
         ],
-        stream=True,
-    )
+        "stream": True,
+    }
+    if prompt_obj is not None:
+        kwargs["langfuse_prompt"] = prompt_obj
+    response = client.chat.completions.create(**kwargs)
     for event in response:
         if not event.choices:
             continue

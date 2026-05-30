@@ -11,35 +11,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from observability import get_prompt
 from summariser import DEEPSEEK_MODEL, get_deepseek_client
-
-
-SYSTEM_PROMPT = """You convert a user's natural-language movie search query into JSON filters.
-
-Output JSON only — no prose, no markdown fences. Use exactly this schema, omitting any key the user did not mention:
-
-{
-  "title_contains": string,
-  "genres": [string, ...],
-  "languages": [string, ...],
-  "min_rating": number between 0 and 10
-}
-
-Guidelines:
-- Genres use title case: Action, Comedy, Drama, Sci-Fi, Animation, Thriller, Horror, Romance, Adventure, Mystery, Fantasy. Map synonyms ("sci-fi"/"scifi"/"science fiction" -> "Sci-Fi", "rom-com" -> ["Romance", "Comedy"]).
-- Languages use title case: English, Japanese, Hindi, Telugu, Tamil, Korean, French, Spanish, Mandarin.
-- "good" / "highly rated" -> min_rating 8. "great" -> 8.5. Numeric phrases ("rated above 7", "8+ stars") -> that number.
-- A specific phrase that does not fit other fields (a movie title, an actor name) goes in title_contains.
-- If you cannot parse anything useful, return {}.
-
-Examples:
-"action movies" -> {"genres": ["Action"]}
-"highly rated japanese films" -> {"languages": ["Japanese"], "min_rating": 8}
-"the dark knight" -> {"title_contains": "dark knight"}
-"hindi or telugu thrillers above 7" -> {"languages": ["Hindi", "Telugu"], "genres": ["Thriller"], "min_rating": 7}
-"good movies" -> {"min_rating": 8}
-"" -> {}
-"""
 
 
 class SearchFilters(BaseModel):
@@ -73,16 +46,20 @@ class SearchQuery(BaseModel):
 
 def parse_query(query: str) -> SearchFilters:
     client = get_deepseek_client()
-    completion = client.chat.completions.create(
-        model=DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+    system_text, prompt_obj = get_prompt("search-parser-system")
+    kwargs = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {"role": "system", "content": system_text},
             {"role": "user", "content": query.strip()},
         ],
-        response_format={"type": "json_object"},
-        temperature=0,
-        max_tokens=200,
-    )
+        "response_format": {"type": "json_object"},
+        "temperature": 0,
+        "max_tokens": 200,
+    }
+    if prompt_obj is not None:
+        kwargs["langfuse_prompt"] = prompt_obj
+    completion = client.chat.completions.create(**kwargs)
     raw = completion.choices[0].message.content or "{}"
     try:
         data = json.loads(raw)

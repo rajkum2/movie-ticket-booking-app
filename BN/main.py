@@ -55,6 +55,8 @@ from summariser import stream_summary
 from search import SearchFilters, SearchQuery, parse_query
 from chat import ChatRequest, stream_chat, stream_completion
 import rag
+import observability
+from pydantic import BaseModel, Field
 from models import (
     Booking,
     BookingCreate,
@@ -83,6 +85,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Trace-Id"],
 )
 
 
@@ -107,6 +110,19 @@ DEMO_ACCOUNTS = [
 # Old demo emails used a reserved `.test` TLD that Pydantic's EmailStr rejects.
 # Clean them up on startup so they don't sit around un-loginable.
 LEGACY_DEMO_EMAILS = ["admin@cinebook.test", "user@cinebook.test"]
+
+
+@app.on_event("startup")
+def seed_langfuse_prompts() -> None:
+    try:
+        observability.seed_prompts()
+    except Exception as exc:
+        log.warning("Could not seed Langfuse prompts: %s", exc)
+
+
+@app.on_event("shutdown")
+def shutdown_langfuse() -> None:
+    observability.flush()
 
 
 @app.on_event("startup")
@@ -315,7 +331,7 @@ def delete_movie(movie_id: int, _: dict = Depends(require_admin)):
 # AI Summariser — streams a DeepSeek-generated summary, caches on first call.
 # ---------------------------------------------------------------------------
 @app.post("/movies/{movie_id}/summarise")
-def summarise_movie(movie_id: int, _: dict = Depends(get_current_user)):
+def summarise_movie(movie_id: int, user: dict = Depends(get_current_user)):
     sb = get_supabase()
     res = (
         sb.table("movies")
@@ -329,62 +345,115 @@ def summarise_movie(movie_id: int, _: dict = Depends(get_current_user)):
 
     cached = (movie.get("ai_summary") or "").strip()
     if cached:
-        # Replay the cached summary as a single stream chunk so the frontend
-        # can treat cached vs fresh responses identically.
+        # Replay the cached summary as a single chunk; no LLM call → no trace.
         def replay():
             yield cached
-        return StreamingResponse(replay(), media_type="text/plain")
+        return StreamingResponse(
+            replay(),
+            media_type="text/plain",
+            headers={"X-Trace-Id": ""},
+        )
+
+    ctx = observability.TraceContext(
+        name="summarise-movie",
+        user_id=str(user["id"]),
+        tags=["summariser"],
+        metadata={"movie_id": movie_id, "title": movie["title"]},
+    )
 
     def generate():
-        collected: list[str] = []
-        try:
-            for delta in stream_summary(movie["title"]):
-                collected.append(delta)
-                yield delta
-        except RuntimeError as exc:  # missing API key
-            log.error("DeepSeek not configured: %s", exc)
-            yield "\n\n[Summariser is not configured on the server.]"
-            return
-        except Exception as exc:
-            log.exception("DeepSeek call failed")
-            yield f"\n\n[Error generating summary: {exc}]"
-            return
+        with ctx:
+            collected: list[str] = []
+            try:
+                for delta in stream_summary(movie["title"]):
+                    collected.append(delta)
+                    yield delta
+            except RuntimeError as exc:
+                log.error("DeepSeek not configured: %s", exc)
+                yield "\n\n[Summariser is not configured on the server.]"
+                return
+            except Exception as exc:
+                log.exception("DeepSeek call failed")
+                yield f"\n\n[Error generating summary: {exc}]"
+                return
 
-        full = "".join(collected).strip()
-        if not full:
-            return
-        try:
-            sb.table("movies").update({"ai_summary": full}).eq(
-                "id", movie_id
-            ).execute()
-        except Exception as exc:
-            log.warning("Could not cache summary for movie %s: %s", movie_id, exc)
+            full = "".join(collected).strip()
+            if not full:
+                return
+            try:
+                sb.table("movies").update({"ai_summary": full}).eq(
+                    "id", movie_id
+                ).execute()
+            except Exception as exc:
+                log.warning(
+                    "Could not cache summary for movie %s: %s", movie_id, exc
+                )
 
-    return StreamingResponse(generate(), media_type="text/plain")
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain",
+        headers={"X-Trace-Id": ctx.trace_id},
+    )
 
 
 # ---------------------------------------------------------------------------
 # AI Chat — multi-turn movie conversation, streams the assistant reply.
 # ---------------------------------------------------------------------------
 @app.post("/chat")
-def chat(payload: ChatRequest, _: dict = Depends(get_current_user)):
+def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
     if payload.messages[-1].role != "user":
         raise HTTPException(
             status_code=400, detail="Last message must be from the user"
         )
 
-    def generate():
-        try:
-            for delta in stream_chat(payload.messages):
-                yield delta
-        except RuntimeError as exc:  # DEEPSEEK_API_KEY missing
-            log.error("DeepSeek not configured: %s", exc)
-            yield "\n\n[Chat is not configured on the server.]"
-        except Exception as exc:
-            log.exception("Chat call failed")
-            yield f"\n\n[Error: {exc}]"
+    ctx = observability.TraceContext(
+        name="chat",
+        user_id=str(user["id"]),
+        tags=["chat"],
+        metadata={"turn_count": len(payload.messages)},
+    )
 
-    return StreamingResponse(generate(), media_type="text/plain")
+    def generate():
+        with ctx:
+            try:
+                for delta in stream_chat(payload.messages):
+                    yield delta
+            except RuntimeError as exc:
+                log.error("DeepSeek not configured: %s", exc)
+                yield "\n\n[Chat is not configured on the server.]"
+            except Exception as exc:
+                log.exception("Chat call failed")
+                yield f"\n\n[Error: {exc}]"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain",
+        headers={"X-Trace-Id": ctx.trace_id},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Trace scoring — thumbs feedback from the chat / summariser UI
+# ---------------------------------------------------------------------------
+class ScoreRequest(BaseModel):
+    value: int = Field(..., ge=0, le=1, description="0 = thumbs down, 1 = thumbs up")
+    comment: Optional[str] = Field(default=None, max_length=500)
+
+
+@app.post("/traces/{trace_id}/score")
+def score_trace(
+    trace_id: str,
+    payload: ScoreRequest,
+    user: dict = Depends(get_current_user),
+):
+    if not trace_id:
+        raise HTTPException(status_code=400, detail="trace_id is required")
+    ok = observability.record_score(trace_id, payload.value, payload.comment)
+    if not ok and not observability.langfuse_enabled():
+        raise HTTPException(
+            status_code=503, detail="Tracing is not configured on the server"
+        )
+    return {"ok": ok}
 
 
 # ---------------------------------------------------------------------------
@@ -476,7 +545,7 @@ def delete_rag_document(doc_id: int, _: dict = Depends(require_admin)):
 
 
 @app.post("/chat/rag")
-def chat_rag(payload: ChatRequest, _: dict = Depends(get_current_user)):
+def chat_rag(payload: ChatRequest, user: dict = Depends(get_current_user)):
     if payload.messages[-1].role != "user":
         raise HTTPException(
             status_code=400, detail="Last message must be from the user"
@@ -486,49 +555,61 @@ def chat_rag(payload: ChatRequest, _: dict = Depends(get_current_user)):
     def ndjson(obj: dict) -> str:
         return json.dumps(obj, ensure_ascii=False) + "\n"
 
+    ctx = observability.TraceContext(
+        name="chat-rag",
+        user_id=str(user["id"]),
+        tags=["chat", "rag"],
+        metadata={"turn_count": len(payload.messages)},
+    )
+
     def generate():
-        try:
-            retrieved = rag.retrieve(user_query)
-        except RuntimeError as exc:  # JINA_API_KEY missing
-            log.error("RAG retrieval skipped: %s", exc)
-            yield ndjson({"type": "sources", "sources": []})
-            yield ndjson({"type": "delta", "content": "[Knowledge base is not configured on the server.]"})
+        with ctx:
+            try:
+                retrieved = rag.retrieve(user_query)
+            except RuntimeError as exc:
+                log.error("RAG retrieval skipped: %s", exc)
+                yield ndjson({"type": "sources", "sources": []})
+                yield ndjson({"type": "delta", "content": "[Knowledge base is not configured on the server.]"})
+                yield ndjson({"type": "done"})
+                return
+            except Exception as exc:
+                log.exception("RAG retrieval failed")
+                yield ndjson({"type": "sources", "sources": []})
+                yield ndjson({"type": "delta", "content": f"[Retrieval error: {exc}]"})
+                yield ndjson({"type": "done"})
+                return
+
+            sources = [
+                {
+                    "document_id": c["document_id"],
+                    "title": c.get("document_title", "Unknown"),
+                    "chunk_index": c["chunk_index"],
+                    "snippet": (c["content"] or "")[:200],
+                    "similarity": round(float(c["similarity"]), 3),
+                }
+                for c in retrieved
+            ]
+            yield ndjson({"type": "sources", "sources": sources})
+
+            system_text, prompt_obj = rag.build_rag_system_prompt(retrieved)
+            messages = [{"role": "system", "content": system_text}] + [
+                {"role": m.role, "content": m.content} for m in payload.messages
+            ]
+
+            try:
+                for delta in stream_completion(messages, langfuse_prompt=prompt_obj):
+                    yield ndjson({"type": "delta", "content": delta})
+            except Exception as exc:
+                log.exception("RAG chat completion failed")
+                yield ndjson({"type": "delta", "content": f"\n\n[Error: {exc}]"})
+
             yield ndjson({"type": "done"})
-            return
-        except Exception as exc:
-            log.exception("RAG retrieval failed")
-            yield ndjson({"type": "sources", "sources": []})
-            yield ndjson({"type": "delta", "content": f"[Retrieval error: {exc}]"})
-            yield ndjson({"type": "done"})
-            return
 
-        sources = [
-            {
-                "document_id": c["document_id"],
-                "title": c.get("document_title", "Unknown"),
-                "chunk_index": c["chunk_index"],
-                "snippet": (c["content"] or "")[:200],
-                "similarity": round(float(c["similarity"]), 3),
-            }
-            for c in retrieved
-        ]
-        yield ndjson({"type": "sources", "sources": sources})
-
-        system_prompt = rag.build_rag_system_prompt(retrieved)
-        messages = [{"role": "system", "content": system_prompt}] + [
-            {"role": m.role, "content": m.content} for m in payload.messages
-        ]
-
-        try:
-            for delta in stream_completion(messages):
-                yield ndjson({"type": "delta", "content": delta})
-        except Exception as exc:
-            log.exception("RAG chat completion failed")
-            yield ndjson({"type": "delta", "content": f"\n\n[Error: {exc}]"})
-
-        yield ndjson({"type": "done"})
-
-    return StreamingResponse(generate(), media_type="application/x-ndjson")
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
+        headers={"X-Trace-Id": ctx.trace_id},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -536,9 +617,15 @@ def chat_rag(payload: ChatRequest, _: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 @app.post("/search/parse", response_model=SearchFilters)
 def parse_search(payload: SearchQuery):
+    ctx = observability.TraceContext(
+        name="search-parse",
+        tags=["search-parser"],
+        metadata={"query": payload.query[:200]},
+    )
     try:
-        return parse_query(payload.query)
-    except RuntimeError as exc:  # DEEPSEEK_API_KEY missing
+        with ctx:
+            return parse_query(payload.query)
+    except RuntimeError as exc:
         log.error("DeepSeek not configured: %s", exc)
         raise HTTPException(status_code=503, detail="Search parser not configured")
     except Exception as exc:

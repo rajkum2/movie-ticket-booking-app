@@ -70,6 +70,17 @@ Two consequences:
 ### Frontend auth state
 `FN/src/auth.jsx` holds the user in a React context and mirrors it to `localStorage` (`cinebook.user`) so a page refresh is instant. On mount, if a token exists, it calls `/auth/me` to revalidate — if that fails the token + user are cleared. Routes that need a logged-in user use `<RequireAuth>`; admin-only routes use `<RequireAuth role="admin">`.
 
+### Observability + prompt management: Langfuse
+All LLM calls (summariser, chat, RAG chat, search parser) are traced via **Langfuse** (`BN/observability.py`). The DeepSeek client is imported from `langfuse.openai`, which auto-captures prompt/response/tokens/cost/latency on every completion. Trace IDs are pre-generated server-side, exposed to the browser via the `X-Trace-Id` response header (CORS `expose_headers` includes it), then used by the frontend to POST thumbs feedback to `/traces/{id}/score`.
+
+**System prompts live in Langfuse**, not in code. Each module fetches its prompt by name with `observability.get_prompt(name)` — currently `summariser-system`, `chat-system`, `search-parser-system`, `rag-grounding-preamble`. The original text is kept in `DEFAULT_PROMPTS` (also in `observability.py`) so the app degrades gracefully if Langfuse is unreachable or a prompt has been deleted. On startup, `seed_prompts()` creates any missing prompts using these defaults — so a fresh Langfuse project gets pre-populated automatically.
+
+Editing a prompt: log into Langfuse → Prompts → pick one → edit → publish to label `production`. Next request picks it up without a redeploy. Old versions are kept in history; every trace records *which version* was used, so a thumbs-down on a trace immediately tells you which prompt was live at the time.
+
+When Langfuse keys are not set, `get_langfuse()` returns `None` and everything else (tracing, prompt fetching, scoring) silently no-ops — useful for local dev without forcing every contributor to sign up. Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and (optionally) `LANGFUSE_HOST` in `.env` / Railway.
+
+`TraceContext` in `observability.py` is the helper that wraps each streaming generator in a Langfuse span with a pre-generated trace_id; this is the only way to get the ID into the response header *before* the stream starts.
+
 ### RAG knowledge base: pgvector + Jina embeddings
 Admin-uploaded documents (`.txt` / `.pdf` / `.docx` / pasted text) are chunked (800 chars, 120 overlap), embedded via **Jina `jina-embeddings-v3`** (1024 dims, free tier), and stored in `rag_chunks` with a pgvector `vector(1024)` column. Jina is a **stateless embedding service** — nothing is stored at Jina; the vectors live in Supabase. The original uploaded file is discarded after extraction (only the extracted text + vectors persist).
 
@@ -101,6 +112,7 @@ Backend (`BN/.env`, or Railway Variables):
 - `R2_*` — required only if `/uploads/poster` is used.
 - `DEEPSEEK_API_KEY` — required only if `/movies/{id}/summarise`, `/chat`, `/chat/rag`, or `/search/parse` is used.
 - `JINA_API_KEY` — required for the RAG feature (`/rag/documents`, `/chat/rag`).
+- `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` — optional. When set, all LLM calls are traced, prompts are fetched from Langfuse, and `/traces/{id}/score` accepts thumbs feedback. When unset, the app falls back to hardcoded prompts in `BN/observability.py` and tracing/scoring become no-ops.
 
 Frontend (`FN/.env`, or Vercel env vars):
 - `VITE_API_URL` — required, the backend's base URL.

@@ -135,8 +135,8 @@ export async function uploadDocument({ title, text, file }) {
   return res.json();
 }
 
-// NDJSON streaming RAG chat — yields { type: "sources"|"delta"|"done", ... }
-export async function* streamRagChat(messages) {
+// Returns { traceId, stream } — stream yields { type: "sources"|"delta"|"done", ... } NDJSON events.
+export async function startRagChat(messages) {
   const token = getToken();
   const res = await fetch(`${API_URL}/chat/rag`, {
     method: "POST",
@@ -158,38 +158,43 @@ export async function* streamRagChat(messages) {
     err.status = res.status;
     throw err;
   }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let nl;
-    while ((nl = buffer.indexOf("\n")) >= 0) {
-      const line = buffer.slice(0, nl).trim();
-      buffer = buffer.slice(nl + 1);
-      if (!line) continue;
+  const traceId = res.headers.get("X-Trace-Id") || null;
+
+  async function* stream() {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        try {
+          yield JSON.parse(line);
+        } catch {
+          /* skip malformed lines */
+        }
+      }
+    }
+    const tail = buffer.trim();
+    if (tail) {
       try {
-        yield JSON.parse(line);
+        yield JSON.parse(tail);
       } catch {
-        /* skip malformed lines */
+        /* ignore */
       }
     }
   }
-  const tail = buffer.trim();
-  if (tail) {
-    try {
-      yield JSON.parse(tail);
-    } catch {
-      /* ignore */
-    }
-  }
+  return { traceId, stream: stream() };
 }
 
 // ---- AI Chat ----
-// messages is an array of { role: "user" | "assistant", content: string }
-export async function* streamChat(messages) {
+// Returns { traceId, stream } where stream is an async generator of text chunks.
+export async function startChat(messages) {
   const token = getToken();
   const res = await fetch(`${API_URL}/chat`, {
     method: "POST",
@@ -211,17 +216,29 @@ export async function* streamChat(messages) {
     err.status = res.status;
     throw err;
   }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    if (chunk) yield chunk;
+  const traceId = res.headers.get("X-Trace-Id") || null;
+
+  async function* stream() {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      if (chunk) yield chunk;
+    }
+    const tail = decoder.decode();
+    if (tail) yield tail;
   }
-  const tail = decoder.decode();
-  if (tail) yield tail;
+  return { traceId, stream: stream() };
 }
+
+// Submit thumbs feedback for a trace. value: 0 (down) or 1 (up).
+export const scoreTrace = (traceId, value, comment) =>
+  request(`/traces/${encodeURIComponent(traceId)}/score`, {
+    method: "POST",
+    body: JSON.stringify({ value, comment }),
+  });
 
 // ---- Natural-language search ----
 // Returns { title_contains?, genres?, languages?, min_rating? }
@@ -232,8 +249,8 @@ export const parseSearchQuery = (query) =>
   });
 
 // ---- AI Summariser ----
-// Async generator that yields chunks of text from the streaming endpoint.
-export async function* streamSummary(movieId) {
+// Returns { traceId, stream } where stream is an async generator of text chunks.
+export async function startSummary(movieId) {
   const token = getToken();
   const res = await fetch(`${API_URL}/movies/${movieId}/summarise`, {
     method: "POST",
@@ -251,16 +268,21 @@ export async function* streamSummary(movieId) {
     err.status = res.status;
     throw err;
   }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    if (chunk) yield chunk;
+  const traceId = res.headers.get("X-Trace-Id") || null;
+
+  async function* stream() {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      if (chunk) yield chunk;
+    }
+    const tail = decoder.decode();
+    if (tail) yield tail;
   }
-  const tail = decoder.decode();
-  if (tail) yield tail;
+  return { traceId, stream: stream() };
 }
 
 // ---- Users (admin) ----

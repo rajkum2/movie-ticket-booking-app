@@ -38,6 +38,19 @@ export default function Chat() {
       return next;
     });
 
+  const setTraceIdOnLast = (traceId) =>
+    setMessages((prev) => {
+      const next = prev.slice();
+      const last = next[next.length - 1];
+      next[next.length - 1] = { ...last, traceId };
+      return next;
+    });
+
+  const setScoreOnLast = (traceId, score) =>
+    setMessages((prev) =>
+      prev.map((m) => (m.traceId === traceId ? { ...m, score } : m))
+    );
+
   const send = async (text) => {
     const content = text.trim();
     if (!content || streaming) return;
@@ -47,14 +60,19 @@ export default function Chat() {
     runRef.current = run;
 
     const history = [...messages, { role: "user", content }];
-    setMessages([...history, { role: "assistant", content: "", sources: null }]);
+    setMessages([
+      ...history,
+      { role: "assistant", content: "", sources: null, traceId: null, score: null },
+    ]);
     setInput("");
     setError(null);
     setStreaming(true);
 
     try {
       if (useRag) {
-        for await (const event of api.streamRagChat(history)) {
+        const { traceId, stream } = await api.startRagChat(history);
+        if (traceId) setTraceIdOnLast(traceId);
+        for await (const event of stream) {
           if (run.cancelled) return;
           if (event.type === "sources") {
             setSourcesOnLast(event.sources);
@@ -63,7 +81,9 @@ export default function Chat() {
           }
         }
       } else {
-        for await (const chunk of api.streamChat(history)) {
+        const { traceId, stream } = await api.startChat(history);
+        if (traceId) setTraceIdOnLast(traceId);
+        for await (const chunk of stream) {
           if (run.cancelled) return;
           appendToLast(chunk);
         }
@@ -75,6 +95,17 @@ export default function Chat() {
       }
     } finally {
       if (!run.cancelled) setStreaming(false);
+    }
+  };
+
+  const handleScore = async (traceId, value) => {
+    if (!traceId) return;
+    setScoreOnLast(traceId, value);
+    try {
+      await api.scoreTrace(traceId, value);
+    } catch (e) {
+      setScoreOnLast(traceId, null);
+      setError(`Could not save feedback: ${e.message}`);
     }
   };
 
@@ -172,6 +203,33 @@ export default function Chat() {
                 {m.role === "assistant" && m.sources && m.sources.length === 0 && isLast && !streaming && (
                   <div className="chat-sources chat-sources-empty">
                     No matching entries in the knowledge base — answer is from general knowledge.
+                  </div>
+                )}
+                {m.role === "assistant" && m.traceId && m.content && !(streaming && isLast) && (
+                  <div className="chat-feedback">
+                    <button
+                      type="button"
+                      className={`feedback-btn ${m.score === 1 ? "feedback-up" : ""}`}
+                      onClick={() => handleScore(m.traceId, 1)}
+                      disabled={m.score !== null && m.score !== undefined}
+                      aria-label="Helpful"
+                      title="Helpful"
+                    >
+                      👍
+                    </button>
+                    <button
+                      type="button"
+                      className={`feedback-btn ${m.score === 0 ? "feedback-down" : ""}`}
+                      onClick={() => handleScore(m.traceId, 0)}
+                      disabled={m.score !== null && m.score !== undefined}
+                      aria-label="Not helpful"
+                      title="Not helpful"
+                    >
+                      👎
+                    </button>
+                    {m.score !== null && m.score !== undefined && (
+                      <span className="feedback-thanks">Thanks for the feedback</span>
+                    )}
                   </div>
                 )}
               </div>

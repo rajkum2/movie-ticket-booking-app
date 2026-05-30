@@ -11,3 +11,4 @@ openai==1.59.7
 httpx>=0.24
 pypdf==5.1.0
 python-docx==1.1.2
+langfuse>=3.0.0,<4.0.0

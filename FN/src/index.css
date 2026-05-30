@@ -2250,3 +2250,48 @@ body {
 .status.success {
   color: #6ee7b7;
 }
+
+/* ---------- Thumbs feedback ---------- */
+.chat-feedback {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.feedback-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.feedback-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+.feedback-btn:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+.feedback-btn.feedback-up {
+  background: rgba(110, 231, 183, 0.18);
+  border-color: rgba(110, 231, 183, 0.5);
+}
+.feedback-btn.feedback-down {
+  background: rgba(229, 9, 20, 0.18);
+  border-color: rgba(229, 9, 20, 0.5);
+}
+.feedback-thanks {
+  color: #888;
+  font-size: 0.78rem;
+  margin-left: 4px;
+}
