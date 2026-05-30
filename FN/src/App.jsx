@@ -14,6 +14,7 @@ import Register from "./pages/Register.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
 import Summariser from "./pages/Summariser.jsx";
+import Chat from "./pages/Chat.jsx";
 import { RequireAuth, useAuth } from "./auth.jsx";
 
 function Header() {
@@ -66,6 +67,11 @@ function Header() {
         {user && (
           <NavLink to="/summariser" className="nx-nav-link">
             AI Summariser
+          </NavLink>
+        )}
+        {user && (
+          <NavLink to="/chat" className="nx-nav-link">
+            AI Chat
           </NavLink>
         )}
         {user && (
@@ -224,6 +230,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <Summariser />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <RequireAuth>
+                <Chat />
               </RequireAuth>
             }
           />

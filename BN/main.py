@@ -52,6 +52,7 @@ from database import get_supabase
 from storage import ALLOWED_CONTENT_TYPES, MAX_POSTER_BYTES, upload_poster
 from summariser import stream_summary
 from search import SearchFilters, SearchQuery, parse_query
+from chat import ChatRequest, stream_chat
 from models import (
     Booking,
     BookingCreate,
@@ -356,6 +357,30 @@ def summarise_movie(movie_id: int, _: dict = Depends(get_current_user)):
             ).execute()
         except Exception as exc:
             log.warning("Could not cache summary for movie %s: %s", movie_id, exc)
+
+    return StreamingResponse(generate(), media_type="text/plain")
+
+
+# ---------------------------------------------------------------------------
+# AI Chat — multi-turn movie conversation, streams the assistant reply.
+# ---------------------------------------------------------------------------
+@app.post("/chat")
+def chat(payload: ChatRequest, _: dict = Depends(get_current_user)):
+    if payload.messages[-1].role != "user":
+        raise HTTPException(
+            status_code=400, detail="Last message must be from the user"
+        )
+
+    def generate():
+        try:
+            for delta in stream_chat(payload.messages):
+                yield delta
+        except RuntimeError as exc:  # DEEPSEEK_API_KEY missing
+            log.error("DeepSeek not configured: %s", exc)
+            yield "\n\n[Chat is not configured on the server.]"
+        except Exception as exc:
+            log.exception("Chat call failed")
+            yield f"\n\n[Error: {exc}]"
 
     return StreamingResponse(generate(), media_type="text/plain")
 

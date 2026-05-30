@@ -104,6 +104,42 @@ export async function uploadPoster(file) {
   return res.json(); // { url, key }
 }
 
+// ---- AI Chat ----
+// messages is an array of { role: "user" | "assistant", content: string }
+export async function* streamChat(messages) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ messages }),
+  });
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    if (chunk) yield chunk;
+  }
+  const tail = decoder.decode();
+  if (tail) yield tail;
+}
+
 // ---- Natural-language search ----
 // Returns { title_contains?, genres?, languages?, min_rating? }
 export const parseSearchQuery = (query) =>
