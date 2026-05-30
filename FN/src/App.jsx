@@ -15,6 +15,7 @@ import AuthCallback from "./pages/AuthCallback.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
 import Summariser from "./pages/Summariser.jsx";
 import Chat from "./pages/Chat.jsx";
+import KnowledgeBase from "./pages/KnowledgeBase.jsx";
 import { RequireAuth, useAuth } from "./auth.jsx";
 
 function Header() {
@@ -82,6 +83,11 @@ function Header() {
         {user?.role === "admin" && (
           <NavLink to="/admin" className="nx-nav-link">
             Admin
+          </NavLink>
+        )}
+        {user?.role === "admin" && (
+          <NavLink to="/knowledge" className="nx-nav-link">
+            Knowledge Base
           </NavLink>
         )}
       </nav>
@@ -238,6 +244,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <Chat />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/knowledge"
+            element={
+              <RequireAuth role="admin">
+                <KnowledgeBase />
               </RequireAuth>
             }
           />

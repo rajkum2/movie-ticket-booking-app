@@ -35,16 +35,15 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(..., min_length=1, max_length=40)
 
 
-def stream_chat(messages: List[ChatMessage]) -> Iterator[str]:
+def stream_completion(messages: List[dict], temperature: float = 0.6) -> Iterator[str]:
+    """Lower-level helper used by both plain chat and RAG chat. Takes raw
+    `{role, content}` dicts so callers can prepend their own system prompt."""
     client = get_deepseek_client()
-    payload = [{"role": "system", "content": SYSTEM_PROMPT}] + [
-        {"role": m.role, "content": m.content} for m in messages
-    ]
     response = client.chat.completions.create(
         model=DEEPSEEK_MODEL,
-        messages=payload,
+        messages=messages,
         stream=True,
-        temperature=0.6,
+        temperature=temperature,
     )
     for event in response:
         if not event.choices:
@@ -52,3 +51,10 @@ def stream_chat(messages: List[ChatMessage]) -> Iterator[str]:
         delta = event.choices[0].delta.content
         if delta:
             yield delta
+
+
+def stream_chat(messages: List[ChatMessage]) -> Iterator[str]:
+    payload = [{"role": "system", "content": SYSTEM_PROMPT}] + [
+        {"role": m.role, "content": m.content} for m in messages
+    ]
+    yield from stream_completion(payload)

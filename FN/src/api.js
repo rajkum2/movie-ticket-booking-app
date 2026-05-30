@@ -104,6 +104,89 @@ export async function uploadPoster(file) {
   return res.json(); // { url, key }
 }
 
+// ---- RAG knowledge base (admin) ----
+export const listDocuments = () => request("/rag/documents");
+export const deleteDocument = (id) =>
+  request(`/rag/documents/${id}`, { method: "DELETE" });
+
+export async function uploadDocument({ title, text, file }) {
+  const token = getToken();
+  const fd = new FormData();
+  fd.append("title", title);
+  if (text) fd.append("text", text);
+  if (file) fd.append("file", file);
+  const res = await fetch(`${API_URL}/rag/documents`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  });
+  if (!res.ok) {
+    let detail = `Upload failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+// NDJSON streaming RAG chat — yields { type: "sources"|"delta"|"done", ... }
+export async function* streamRagChat(messages) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/chat/rag`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ messages }),
+  });
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      try {
+        yield JSON.parse(line);
+      } catch {
+        /* skip malformed lines */
+      }
+    }
+  }
+  const tail = buffer.trim();
+  if (tail) {
+    try {
+      yield JSON.parse(tail);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 // ---- AI Chat ----
 // messages is an array of { role: "user" | "assistant", content: string }
 export async function* streamChat(messages) {

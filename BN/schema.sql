@@ -29,6 +29,58 @@ alter table movies add column if not exists backdrop_url text;
 -- Cache of AI-generated summaries (DeepSeek). Populated lazily on first request.
 alter table movies add column if not exists ai_summary text;
 
+-- ---------------------------------------------------------------------------
+-- RAG knowledge base (pgvector + Jina embeddings)
+-- ---------------------------------------------------------------------------
+create extension if not exists vector;
+
+create table if not exists rag_documents (
+    id           bigint generated always as identity primary key,
+    title        text not null,
+    source       text,
+    uploaded_by  bigint references users(id) on delete set null,
+    created_at   timestamptz not null default now()
+);
+
+create table if not exists rag_chunks (
+    id           bigint generated always as identity primary key,
+    document_id  bigint not null references rag_documents(id) on delete cascade,
+    chunk_index  int    not null,
+    content      text   not null,
+    embedding    vector(1024) not null,
+    created_at   timestamptz not null default now()
+);
+
+create index if not exists idx_rag_chunks_doc on rag_chunks (document_id);
+create index if not exists idx_rag_chunks_embedding
+    on rag_chunks using hnsw (embedding vector_cosine_ops);
+
+-- Vector similarity search via supabase-py rpc(). Returns the top matching
+-- chunks above the threshold, ordered by cosine similarity (1 - distance).
+create or replace function match_rag_chunks(
+    query_embedding vector(1024),
+    match_threshold float default 0.4,
+    match_count int default 5
+)
+returns table (
+    id bigint,
+    document_id bigint,
+    chunk_index int,
+    content text,
+    similarity float
+)
+language sql stable as $$
+    select c.id,
+           c.document_id,
+           c.chunk_index,
+           c.content,
+           1 - (c.embedding <=> query_embedding) as similarity
+    from rag_chunks c
+    where 1 - (c.embedding <=> query_embedding) >= match_threshold
+    order by c.embedding <=> query_embedding
+    limit match_count;
+$$;
+
 -- OAuth users (e.g. Google sign-in) don't have a local password; make
 -- password_hash nullable so we can store them in the same table.
 alter table users alter column password_hash drop not null;

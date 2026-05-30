@@ -70,6 +70,17 @@ Two consequences:
 ### Frontend auth state
 `FN/src/auth.jsx` holds the user in a React context and mirrors it to `localStorage` (`cinebook.user`) so a page refresh is instant. On mount, if a token exists, it calls `/auth/me` to revalidate — if that fails the token + user are cleared. Routes that need a logged-in user use `<RequireAuth>`; admin-only routes use `<RequireAuth role="admin">`.
 
+### RAG knowledge base: pgvector + Jina embeddings
+Admin-uploaded documents (`.txt` / `.pdf` / `.docx` / pasted text) are chunked (800 chars, 120 overlap), embedded via **Jina `jina-embeddings-v3`** (1024 dims, free tier), and stored in `rag_chunks` with a pgvector `vector(1024)` column. Jina is a **stateless embedding service** — nothing is stored at Jina; the vectors live in Supabase. The original uploaded file is discarded after extraction (only the extracted text + vectors persist).
+
+Retrieval uses a Postgres function `match_rag_chunks(query_embedding, threshold, count)` called via `sb.rpc()`. supabase-py doesn't natively support pgvector operators, so RPC is the canonical workaround.
+
+`POST /chat/rag` does retrieval → builds a soft-grounded system prompt → streams NDJSON (`{"type":"sources",...}` then many `{"type":"delta",...}` then `{"type":"done"}`). The frontend `Chat.jsx` toggle picks between `streamChat` (plain text) and `streamRagChat` (NDJSON) — two protocols share the page state.
+
+Schema: re-run `BN/schema.sql` after adding RAG to get the `create extension vector`, both new tables, the HNSW index, and the `match_rag_chunks` function. Env: add `JINA_API_KEY` to Railway. Deps: `pypdf`, `python-docx`, `httpx` (added to `requirements.txt`).
+
+When extending RAG (re-ranking, hybrid keyword+vector, citations to file storage), start in `BN/rag.py` — every retrieval+ingestion step is isolated there.
+
 ### AI Chat: multi-turn DeepSeek conversation
 `BN/chat.py` holds the system prompt that scopes the assistant ("CineBot") to film topics. `POST /chat` is login-gated, takes `{ messages: [{role, content}] }` (last must be `role: "user"`), prepends the system prompt, and streams the assistant reply as `text/plain` via the same `StreamingResponse` pattern as the summariser. **No DB persistence** — the conversation lives in `Chat.jsx` component state. The frontend sends the full history on every turn, so context cost grows linearly; `ChatRequest` caps `messages` at 40 and each `content` at 4000 chars as a guardrail. Temperature is `0.6` (warmer than the summariser/search-parser to make replies more conversational). When extending the assistant — e.g. tool-calling, catalog awareness, persistence — start from `chat.py` and the request model in `BN/chat.py`.
 
@@ -88,7 +99,8 @@ Backend (`BN/.env`, or Railway Variables):
 - `SUPABASE_URL`, `SUPABASE_KEY` (service_role) — required, read in `database.py`
 - `ALLOWED_ORIGINS` — comma-separated, or `*`. Read in `main.py` for CORS.
 - `R2_*` — required only if `/uploads/poster` is used.
-- `DEEPSEEK_API_KEY` — required only if `/movies/{id}/summarise` is used.
+- `DEEPSEEK_API_KEY` — required only if `/movies/{id}/summarise`, `/chat`, `/chat/rag`, or `/search/parse` is used.
+- `JINA_API_KEY` — required for the RAG feature (`/rag/documents`, `/chat/rag`).
 
 Frontend (`FN/.env`, or Vercel env vars):
 - `VITE_API_URL` — required, the backend's base URL.

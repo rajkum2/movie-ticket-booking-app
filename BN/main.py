@@ -32,11 +32,12 @@ Users (admin-only)
 * PUT  /users/{id}
 * DELETE /users/{id}
 """
+import json
 import logging
 import os
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -52,7 +53,8 @@ from database import get_supabase
 from storage import ALLOWED_CONTENT_TYPES, MAX_POSTER_BYTES, upload_poster
 from summariser import stream_summary
 from search import SearchFilters, SearchQuery, parse_query
-from chat import ChatRequest, stream_chat
+from chat import ChatRequest, stream_chat, stream_completion
+import rag
 from models import (
     Booking,
     BookingCreate,
@@ -383,6 +385,150 @@ def chat(payload: ChatRequest, _: dict = Depends(get_current_user)):
             yield f"\n\n[Error: {exc}]"
 
     return StreamingResponse(generate(), media_type="text/plain")
+
+
+# ---------------------------------------------------------------------------
+# RAG knowledge base
+# ---------------------------------------------------------------------------
+@app.post("/rag/documents", status_code=201)
+async def ingest_rag_document(
+    title: str = Form(...),
+    text: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    admin: dict = Depends(require_admin),
+):
+    if not file and not (text and text.strip()):
+        raise HTTPException(status_code=400, detail="Provide either text or a file")
+
+    if file:
+        raw = await file.read()
+        if not raw:
+            raise HTTPException(status_code=400, detail="Empty file")
+        if len(raw) > rag.MAX_DOC_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large (max {rag.MAX_DOC_BYTES // (1024 * 1024)} MB)",
+            )
+        try:
+            body = rag.extract_text(raw, file.filename, file.content_type)
+        except Exception as exc:
+            log.exception("Failed to extract text")
+            raise HTTPException(status_code=400, detail=f"Could not parse file: {exc}")
+        source = file.filename or "upload"
+    else:
+        body = text  # type: ignore[assignment]
+        source = "manual"
+
+    if not body or not body.strip():
+        raise HTTPException(status_code=400, detail="Document text is empty")
+
+    try:
+        result = rag.ingest_document(
+            title=title.strip(),
+            body=body,
+            uploaded_by=admin["id"],
+            source=source,
+        )
+    except RuntimeError as exc:
+        log.error("Ingest failed: %s", exc)
+        raise HTTPException(status_code=503, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        log.exception("Ingest failed")
+        raise HTTPException(status_code=502, detail=f"Ingest failed: {exc}")
+    return result
+
+
+@app.get("/rag/documents")
+def list_rag_documents(_: dict = Depends(require_admin)):
+    sb = get_supabase()
+    docs = (
+        sb.table("rag_documents")
+        .select("id,title,source,created_at,uploaded_by")
+        .order("created_at", desc=True)
+        .execute()
+    )
+    rows = docs.data or []
+    if not rows:
+        return []
+    doc_ids = [r["id"] for r in rows]
+    counts_res = (
+        sb.table("rag_chunks")
+        .select("document_id", count="exact")
+        .in_("document_id", doc_ids)
+        .execute()
+    )
+    # supabase-py doesn't group counts; fall back to client-side tally.
+    counts: dict[int, int] = {}
+    for c in counts_res.data or []:
+        counts[c["document_id"]] = counts.get(c["document_id"], 0) + 1
+    for r in rows:
+        r["chunk_count"] = counts.get(r["id"], 0)
+    return rows
+
+
+@app.delete("/rag/documents/{doc_id}", status_code=204)
+def delete_rag_document(doc_id: int, _: dict = Depends(require_admin)):
+    sb = get_supabase()
+    sb.table("rag_documents").delete().eq("id", doc_id).execute()
+    return None
+
+
+@app.post("/chat/rag")
+def chat_rag(payload: ChatRequest, _: dict = Depends(get_current_user)):
+    if payload.messages[-1].role != "user":
+        raise HTTPException(
+            status_code=400, detail="Last message must be from the user"
+        )
+    user_query = payload.messages[-1].content
+
+    def ndjson(obj: dict) -> str:
+        return json.dumps(obj, ensure_ascii=False) + "\n"
+
+    def generate():
+        try:
+            retrieved = rag.retrieve(user_query)
+        except RuntimeError as exc:  # JINA_API_KEY missing
+            log.error("RAG retrieval skipped: %s", exc)
+            yield ndjson({"type": "sources", "sources": []})
+            yield ndjson({"type": "delta", "content": "[Knowledge base is not configured on the server.]"})
+            yield ndjson({"type": "done"})
+            return
+        except Exception as exc:
+            log.exception("RAG retrieval failed")
+            yield ndjson({"type": "sources", "sources": []})
+            yield ndjson({"type": "delta", "content": f"[Retrieval error: {exc}]"})
+            yield ndjson({"type": "done"})
+            return
+
+        sources = [
+            {
+                "document_id": c["document_id"],
+                "title": c.get("document_title", "Unknown"),
+                "chunk_index": c["chunk_index"],
+                "snippet": (c["content"] or "")[:200],
+                "similarity": round(float(c["similarity"]), 3),
+            }
+            for c in retrieved
+        ]
+        yield ndjson({"type": "sources", "sources": sources})
+
+        system_prompt = rag.build_rag_system_prompt(retrieved)
+        messages = [{"role": "system", "content": system_prompt}] + [
+            {"role": m.role, "content": m.content} for m in payload.messages
+        ]
+
+        try:
+            for delta in stream_completion(messages):
+                yield ndjson({"type": "delta", "content": delta})
+        except Exception as exc:
+            log.exception("RAG chat completion failed")
+            yield ndjson({"type": "delta", "content": f"\n\n[Error: {exc}]"})
+
+        yield ndjson({"type": "done"})
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 # ---------------------------------------------------------------------------

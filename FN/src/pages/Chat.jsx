@@ -13,6 +13,7 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(null);
+  const [useRag, setUseRag] = useState(false);
   const scrollerRef = useRef(null);
   const runRef = useRef({ cancelled: false });
 
@@ -20,6 +21,22 @@ export default function Chat() {
     const el = scrollerRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, streaming]);
+
+  const appendToLast = (chunk) =>
+    setMessages((prev) => {
+      const next = prev.slice();
+      const last = next[next.length - 1];
+      next[next.length - 1] = { ...last, content: last.content + chunk };
+      return next;
+    });
+
+  const setSourcesOnLast = (sources) =>
+    setMessages((prev) => {
+      const next = prev.slice();
+      const last = next[next.length - 1];
+      next[next.length - 1] = { ...last, sources };
+      return next;
+    });
 
   const send = async (text) => {
     const content = text.trim();
@@ -30,20 +47,26 @@ export default function Chat() {
     runRef.current = run;
 
     const history = [...messages, { role: "user", content }];
-    setMessages([...history, { role: "assistant", content: "" }]);
+    setMessages([...history, { role: "assistant", content: "", sources: null }]);
     setInput("");
     setError(null);
     setStreaming(true);
 
     try {
-      for await (const chunk of api.streamChat(history)) {
-        if (run.cancelled) return;
-        setMessages((prev) => {
-          const next = prev.slice();
-          const last = next[next.length - 1];
-          next[next.length - 1] = { ...last, content: last.content + chunk };
-          return next;
-        });
+      if (useRag) {
+        for await (const event of api.streamRagChat(history)) {
+          if (run.cancelled) return;
+          if (event.type === "sources") {
+            setSourcesOnLast(event.sources);
+          } else if (event.type === "delta") {
+            appendToLast(event.content);
+          }
+        }
+      } else {
+        for await (const chunk of api.streamChat(history)) {
+          if (run.cancelled) return;
+          appendToLast(chunk);
+        }
       }
     } catch (e) {
       if (!run.cancelled) {
@@ -86,11 +109,22 @@ export default function Chat() {
             Chat with CineBot — recommendations, summaries, comparisons, trivia.
           </p>
         </div>
-        {messages.length > 0 && (
-          <button className="link-btn" onClick={reset} disabled={streaming}>
-            New chat
-          </button>
-        )}
+        <div className="chat-head-actions">
+          <label className="chat-toggle" title="Answer from your uploaded knowledge base">
+            <input
+              type="checkbox"
+              checked={useRag}
+              onChange={(e) => setUseRag(e.target.checked)}
+              disabled={streaming}
+            />
+            <span>Ground in knowledge base</span>
+          </label>
+          {messages.length > 0 && (
+            <button className="link-btn" onClick={reset} disabled={streaming}>
+              New chat
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="chat-scroller" ref={scrollerRef}>
@@ -111,16 +145,38 @@ export default function Chat() {
             </div>
           </div>
         ) : (
-          messages.map((m, i) => (
-            <div key={i} className={`chat-msg chat-msg-${m.role}`}>
-              <div className="chat-bubble">
-                {m.content || (streaming && i === messages.length - 1 ? "…" : "")}
-                {streaming && i === messages.length - 1 && m.content && (
-                  <span className="chat-cursor">▍</span>
+          messages.map((m, i) => {
+            const isLast = i === messages.length - 1;
+            return (
+              <div key={i} className={`chat-msg chat-msg-${m.role}`}>
+                <div className="chat-bubble">
+                  {m.content || (streaming && isLast ? "…" : "")}
+                  {streaming && isLast && m.content && (
+                    <span className="chat-cursor">▍</span>
+                  )}
+                </div>
+                {m.role === "assistant" && m.sources && m.sources.length > 0 && (
+                  <div className="chat-sources">
+                    <span className="chat-sources-label">Sources:</span>
+                    {m.sources.map((s) => (
+                      <span
+                        key={`${s.document_id}-${s.chunk_index}`}
+                        className="chat-source-chip"
+                        title={`${s.snippet} (similarity ${s.similarity})`}
+                      >
+                        {s.title}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {m.role === "assistant" && m.sources && m.sources.length === 0 && isLast && !streaming && (
+                  <div className="chat-sources chat-sources-empty">
+                    No matching entries in the knowledge base — answer is from general knowledge.
+                  </div>
                 )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -132,7 +188,9 @@ export default function Chat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about a movie..."
+          placeholder={
+            useRag ? "Ask about your uploaded docs..." : "Ask about a movie..."
+          }
           rows={1}
           disabled={streaming}
         />
