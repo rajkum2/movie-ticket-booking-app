@@ -108,6 +108,8 @@ export async function uploadPoster(file) {
 export const listDocuments = () => request("/rag/documents");
 export const deleteDocument = (id) =>
   request(`/rag/documents/${id}`, { method: "DELETE" });
+export const reingestDocuments = () =>
+  request("/rag/reingest", { method: "POST" });
 
 export async function uploadDocument({ title, text, file }) {
   const token = getToken();

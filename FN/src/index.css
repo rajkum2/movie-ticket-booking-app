@@ -2219,8 +2219,14 @@ body {
   color: #999;
 }
 .kb-subheading {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 1.15rem;
+}
+.kb-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 0.75rem;
 }
 .kb-list {
   list-style: none;

@@ -18,6 +18,7 @@ import httpx
 
 from database import get_supabase
 from observability import get_prompt
+from summariser import DEEPSEEK_MODEL, get_deepseek_client
 
 
 log = logging.getLogger("uvicorn.error")
@@ -136,12 +137,24 @@ def embed_texts(texts: List[str], task: str = "retrieval.passage") -> List[List[
 # ---------------------------------------------------------------------------
 # Ingest
 # ---------------------------------------------------------------------------
+def _embed_with_title(title: str, chunks: List[str]) -> List[List[float]]:
+    """Prepend the document title to each chunk before embedding.
+
+    This bakes the document's identity into every chunk's vector so retrieval
+    finds the right chunks even when a chunk's body doesn't repeat the title.
+    The chunk text stored in the DB stays raw — the title prefix is only used
+    when computing the vector.
+    """
+    titled = [f"[{title}]\n{c}" for c in chunks]
+    return embed_texts(titled, task="retrieval.passage")
+
+
 def ingest_document(title: str, body: str, uploaded_by: Optional[int], source: Optional[str]) -> dict:
     chunks = chunk_text(body)
     if not chunks:
         raise ValueError("Document is empty after extraction")
 
-    vectors = embed_texts(chunks, task="retrieval.passage")
+    vectors = _embed_with_title(title, chunks)
     if len(vectors) != len(chunks):
         raise RuntimeError("Embedding count mismatch from Jina response")
 
@@ -167,6 +180,56 @@ def ingest_document(title: str, body: str, uploaded_by: Optional[int], source: O
     sb.table("rag_chunks").insert(rows).execute()
 
     return {"id": doc["id"], "title": doc["title"], "chunk_count": len(chunks)}
+
+
+def reingest_all_documents() -> dict:
+    """Re-embed every existing chunk with the current ingestion strategy.
+
+    Keeps the stored chunk text intact and only refreshes the `embedding`
+    column. Use this after changing how embeddings are computed (e.g. when
+    we started prepending the document title to each chunk).
+    """
+    sb = get_supabase()
+    docs = (
+        sb.table("rag_documents")
+        .select("id,title")
+        .order("id")
+        .execute()
+    )
+
+    docs_done = 0
+    chunks_done = 0
+
+    for doc in (docs.data or []):
+        title = doc.get("title") or ""
+        chunks_res = (
+            sb.table("rag_chunks")
+            .select("id,chunk_index,content")
+            .eq("document_id", doc["id"])
+            .order("chunk_index")
+            .execute()
+        )
+        chunks = chunks_res.data or []
+        if not chunks:
+            continue
+
+        contents = [c["content"] for c in chunks]
+        vectors = _embed_with_title(title, contents)
+        if len(vectors) != len(chunks):
+            log.warning(
+                "Reingest skipped doc %s — embedding count mismatch", doc["id"]
+            )
+            continue
+
+        for c, vector in zip(chunks, vectors):
+            sb.table("rag_chunks").update({"embedding": vector}).eq(
+                "id", c["id"]
+            ).execute()
+
+        docs_done += 1
+        chunks_done += len(chunks)
+
+    return {"documents": docs_done, "chunks": chunks_done}
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +263,68 @@ def retrieve(query: str, k: int = 5, threshold: float = 0.4) -> List[dict]:
     for c in chunks:
         c["document_title"] = titles.get(c["document_id"], "Unknown")
     return chunks
+
+
+# ---------------------------------------------------------------------------
+# Query reformulation — resolves pronouns / implicit references in follow-up
+# turns so the retriever sees the same topic the chat model already infers.
+# Only the most recent few turns are passed in to keep the call cheap.
+# ---------------------------------------------------------------------------
+REFORMULATE_HISTORY_LIMIT = 10
+
+
+def reformulate_query(messages: List) -> str:
+    """Rewrite the latest message as a self-contained query using prior turns.
+
+    `messages` is a list of ChatMessage-shaped objects (anything with .role and
+    .content attributes). If history is empty or the call fails, we return the
+    latest message verbatim — the retriever then behaves as it did before.
+    """
+    if not messages:
+        return ""
+    latest = (messages[-1].content or "").strip()
+    if len(messages) == 1 or not latest:
+        return latest
+
+    history = messages[-REFORMULATE_HISTORY_LIMIT:]
+    history_text = "\n".join(f"{m.role}: {m.content}" for m in history[:-1])
+
+    system_text, prompt_obj = get_prompt("rag-query-reformulator")
+
+    try:
+        client = get_deepseek_client()
+    except RuntimeError:
+        return latest
+
+    kwargs = {
+        "model": DEEPSEEK_MODEL,
+        "temperature": 0,
+        "max_tokens": 80,
+        "messages": [
+            {"role": "system", "content": system_text},
+            {
+                "role": "user",
+                "content": (
+                    f"Chat history:\n{history_text}\n\n"
+                    f"Latest message: {latest}\n\n"
+                    "Rewritten search query:"
+                ),
+            },
+        ],
+    }
+    if prompt_obj is not None:
+        kwargs["langfuse_prompt"] = prompt_obj
+
+    try:
+        completion = client.chat.completions.create(**kwargs)
+    except Exception as exc:
+        log.warning("Query reformulation failed, falling back: %s", exc)
+        return latest
+
+    rewritten = (completion.choices[0].message.content or "").strip()
+    if rewritten.startswith('"') and rewritten.endswith('"'):
+        rewritten = rewritten[1:-1].strip()
+    return rewritten or latest
 
 
 def build_rag_system_prompt(retrieved_chunks: List[dict]) -> tuple[str, Optional[object]]:

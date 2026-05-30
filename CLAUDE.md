@@ -90,6 +90,10 @@ Retrieval uses a Postgres function `match_rag_chunks(query_embedding, threshold,
 
 Schema: re-run `BN/schema.sql` after adding RAG to get the `create extension vector`, both new tables, the HNSW index, and the `match_rag_chunks` function. Env: add `JINA_API_KEY` to Railway. Deps: `pypdf`, `python-docx`, `httpx` (added to `requirements.txt`).
 
+**Query reformulation**: before the vector search, `/chat/rag` calls `rag.reformulate_query(messages)` — a small DeepSeek call that rewrites the latest user message as a self-contained query using the conversation history (last 10 turns). This closes the gap where retrieval only sees the last message while generation sees the whole history — without it, a follow-up like "what's the release date?" after discussing Missamma would embed without any anchor and return zero matches. The reformulator falls back silently to the raw message if the LLM call fails. Its system prompt lives in Langfuse as `rag-query-reformulator`.
+
+**Title-prepending in ingestion**: `_embed_with_title()` prepends `[Document Title]\n` to each chunk *before* sending it to Jina. The stored `rag_chunks.content` stays raw — only the embedding incorporates the title. This bakes the document's identity into every chunk's vector so queries that mention the doc title retrieve all relevant chunks (not just the one that happens to repeat the title in its body). After changing this strategy, hit the admin **"Re-ingest all"** button (calls `POST /rag/reingest` → `rag.reingest_all_documents()`) to refresh existing embeddings without re-uploading the source files.
+
 When extending RAG (re-ranking, hybrid keyword+vector, citations to file storage), start in `BN/rag.py` — every retrieval+ingestion step is isolated there.
 
 ### AI Chat: multi-turn DeepSeek conversation

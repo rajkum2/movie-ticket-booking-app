@@ -544,6 +544,20 @@ def delete_rag_document(doc_id: int, _: dict = Depends(require_admin)):
     return None
 
 
+@app.post("/rag/reingest")
+def reingest_all_rag(_: dict = Depends(require_admin)):
+    """Re-embed every existing chunk with the current ingestion strategy.
+    Run this after we change how embeddings are computed (e.g. title-prepending)."""
+    try:
+        return rag.reingest_all_documents()
+    except RuntimeError as exc:
+        log.error("Reingest failed: %s", exc)
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        log.exception("Reingest failed")
+        raise HTTPException(status_code=502, detail=f"Reingest failed: {exc}")
+
+
 @app.post("/chat/rag")
 def chat_rag(payload: ChatRequest, user: dict = Depends(get_current_user)):
     if payload.messages[-1].role != "user":
@@ -564,8 +578,15 @@ def chat_rag(payload: ChatRequest, user: dict = Depends(get_current_user)):
 
     def generate():
         with ctx:
+            # Rewrite the latest message into a self-contained search query
+            # using the chat history. Falls back to the raw message on failure.
+            search_query = rag.reformulate_query(payload.messages)
+            if search_query and search_query != user_query:
+                log.info(
+                    "Reformulated query: %r -> %r", user_query, search_query
+                )
             try:
-                retrieved = rag.retrieve(user_query)
+                retrieved = rag.retrieve(search_query or user_query)
             except RuntimeError as exc:
                 log.error("RAG retrieval skipped: %s", exc)
                 yield ndjson({"type": "sources", "sources": []})

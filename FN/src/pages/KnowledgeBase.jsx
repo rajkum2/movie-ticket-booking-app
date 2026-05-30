@@ -11,6 +11,7 @@ export default function KnowledgeBase() {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [reingesting, setReingesting] = useState(false);
   const fileInputRef = useRef(null);
 
   const refresh = async () => {
@@ -69,6 +70,31 @@ export default function KnowledgeBase() {
       refresh();
     } catch (e) {
       setError(e.message);
+    }
+  };
+
+  const handleReingest = async () => {
+    if (
+      !window.confirm(
+        "Re-embed every chunk of every document with the current ingestion strategy? " +
+          "This costs a small amount of Jina credits but is needed when the embedding " +
+          "strategy changes (e.g. after enabling title-prepending)."
+      )
+    ) {
+      return;
+    }
+    setReingesting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const result = await api.reingestDocuments();
+      setSuccess(
+        `Re-embedded ${result.chunks} chunks across ${result.documents} documents`
+      );
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setReingesting(false);
     }
   };
 
@@ -132,7 +158,20 @@ export default function KnowledgeBase() {
         </button>
       </form>
 
-      <h2 className="kb-subheading">Documents</h2>
+      <div className="kb-list-head">
+        <h2 className="kb-subheading">Documents</h2>
+        {docs.length > 0 && (
+          <button
+            type="button"
+            className="link-btn"
+            onClick={handleReingest}
+            disabled={reingesting}
+            title="Re-embed all chunks with the current strategy"
+          >
+            {reingesting ? "Re-embedding…" : "Re-ingest all"}
+          </button>
+        )}
+      </div>
       {loading ? (
         <p className="status">Loading…</p>
       ) : docs.length === 0 ? (

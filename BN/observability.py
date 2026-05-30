@@ -92,6 +92,24 @@ DEFAULT_PROMPTS: dict[str, str] = {
         "so the user knows. Keep replies concise unless the user asks for "
         "depth."
     ),
+    "rag-query-reformulator": (
+        "You rewrite a user's latest chat message into a single self-contained "
+        "search query, resolving any pronouns or references using the chat "
+        "history.\n\n"
+        "Output ONLY the rewritten question — no quotes, no prefix, no "
+        "explanation.\n\n"
+        "Rules:\n"
+        "- If the latest message is already self-contained (mentions the "
+        "subject explicitly), return it unchanged.\n"
+        "- If it uses pronouns or implicit references (\"it\", \"its\", "
+        "\"that one\", \"what about the runtime?\"), substitute the actual "
+        "subject from the most recent topic in the history.\n"
+        "- For comparisons (\"which is shorter?\"), explicitly name the "
+        "subjects being compared.\n"
+        "- If the message is pure chitchat (\"thanks\", \"ok\", \"cool\") "
+        "with nothing to search for, return an empty string.\n"
+        "- Keep the rewritten query concise — under 30 words."
+    ),
 }
 
 
