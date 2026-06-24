@@ -168,7 +168,14 @@ def get_langfuse():
     """
     pk = os.environ.get("LANGFUSE_PUBLIC_KEY")
     sk = os.environ.get("LANGFUSE_SECRET_KEY")
-    host = os.environ.get("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
+    # Accept LANGFUSE_HOST or the common LANGFUSE_BASE_URL alias — the keys are
+    # region-specific, so pointing at the wrong host silently 401s (no traces,
+    # no live prompts). Falls back to the EU cloud where this project lives.
+    host = (
+        os.environ.get("LANGFUSE_HOST")
+        or os.environ.get("LANGFUSE_BASE_URL")
+        or "https://cloud.langfuse.com"
+    )
     if not (pk and sk):
         log.info("Langfuse not configured (LANGFUSE_PUBLIC_KEY/SECRET_KEY) — tracing disabled")
         return None
