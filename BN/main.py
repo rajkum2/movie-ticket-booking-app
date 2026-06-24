@@ -55,6 +55,8 @@ from summariser import stream_summary
 from search import SearchFilters, SearchQuery, parse_query
 from chat import ChatRequest, stream_chat, stream_completion
 import rag
+import agent
+import featureflags
 import observability
 from pydantic import BaseModel, Field
 from models import (
@@ -118,6 +120,14 @@ def seed_langfuse_prompts() -> None:
         observability.seed_prompts()
     except Exception as exc:
         log.warning("Could not seed Langfuse prompts: %s", exc)
+
+
+@app.on_event("startup")
+def seed_feature_flags() -> None:
+    try:
+        featureflags.seed_flags()
+    except Exception as exc:
+        log.warning("Could not seed feature flags: %s", exc)
 
 
 @app.on_event("shutdown")
@@ -428,6 +438,75 @@ def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
     return StreamingResponse(
         generate(),
         media_type="text/plain",
+        headers={"X-Trace-Id": ctx.trace_id},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Feature flags — global capability toggles (admin-controlled)
+# ---------------------------------------------------------------------------
+class FlagUpdate(BaseModel):
+    enabled: bool
+
+
+@app.get("/feature-flags")
+def get_feature_flags(_: dict = Depends(get_current_user)):
+    """All capability flags. Any signed-in user can read them so the UI knows
+    which capabilities are active; only admins can change them."""
+    return featureflags.list_flags()
+
+
+@app.put("/feature-flags/{key}")
+def update_feature_flag(
+    key: str, payload: FlagUpdate, _: dict = Depends(require_admin)
+):
+    try:
+        return featureflags.set_flag(key, payload.enabled)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Unknown flag: {key}")
+
+
+# ---------------------------------------------------------------------------
+# Agentic chat — tool-using CineBot, gated by the `tools` feature flag.
+# Streams NDJSON: tool_call / tool_result / delta / done.
+# ---------------------------------------------------------------------------
+@app.post("/chat/agent")
+def chat_agent(payload: ChatRequest, user: dict = Depends(get_current_user)):
+    if payload.messages[-1].role != "user":
+        raise HTTPException(
+            status_code=400, detail="Last message must be from the user"
+        )
+    if not featureflags.is_enabled("tools"):
+        raise HTTPException(
+            status_code=403, detail="Tool use is not enabled"
+        )
+
+    def ndjson(obj: dict) -> str:
+        return json.dumps(obj, ensure_ascii=False) + "\n"
+
+    ctx = observability.TraceContext(
+        name="chat-agent",
+        user_id=str(user["id"]),
+        tags=["chat", "agent", "tools"],
+        metadata={"turn_count": len(payload.messages)},
+    )
+
+    def generate():
+        with ctx:
+            try:
+                for event in agent.stream_agent_chat(payload.messages, user):
+                    yield ndjson(event)
+            except RuntimeError as exc:
+                log.error("DeepSeek not configured: %s", exc)
+                yield ndjson({"type": "delta", "content": "[Chat is not configured on the server.]"})
+            except Exception as exc:
+                log.exception("Agent chat failed")
+                yield ndjson({"type": "delta", "content": f"\n\n[Error: {exc}]"})
+            yield ndjson({"type": "done"})
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
         headers={"X-Trace-Id": ctx.trace_id},
     )
 

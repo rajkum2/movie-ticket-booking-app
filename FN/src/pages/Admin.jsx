@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import BookingsTab from "./admin/BookingsTab.jsx";
 import MoviesTab from "./admin/MoviesTab.jsx";
 import UsersTab from "./admin/UsersTab.jsx";
+import CapabilitiesTab from "./admin/CapabilitiesTab.jsx";
 
 const TABS = [
   { id: "bookings", label: "Bookings" },
   { id: "movies", label: "Movies" },
   { id: "users", label: "Users" },
+  { id: "capabilities", label: "Capabilities" },
 ];
 
 export default function Admin() {
@@ -37,6 +39,7 @@ export default function Admin() {
         {tab === "bookings" && <BookingsTab />}
         {tab === "movies" && <MoviesTab />}
         {tab === "users" && <UsersTab />}
+        {tab === "capabilities" && <CapabilitiesTab />}
       </div>
     </section>
   );

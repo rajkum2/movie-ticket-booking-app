@@ -8,12 +8,31 @@ const SUGGESTIONS = [
   "Explain the ending of Interstellar (no spoilers please)",
 ];
 
+// Shown when the Tool use capability is enabled — these exercise the tools.
+const AGENT_SUGGESTIONS = [
+  "What action movies are in the catalog right now?",
+  "When's the next showtime for The Dark Knight?",
+  "Are there seats free for Inception's evening show?",
+  "What have I booked so far?",
+];
+
+// Friendly labels for the grey tool-activity rows.
+const TOOL_LABELS = {
+  search_movies: "Searched the catalog",
+  get_movie_details: "Looked up movie details",
+  get_showtimes: "Checked showtimes",
+  get_seat_availability: "Checked seat availability",
+  get_my_bookings: "Looked up your bookings",
+  current_datetime: "Checked the current date/time",
+};
+
 export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(null);
-  const [useRag, setUseRag] = useState(false);
+  const [mode, setMode] = useState("chat"); // "chat" | "rag" | "tools"
+  const [toolsEnabled, setToolsEnabled] = useState(false);
   const scrollerRef = useRef(null);
   const runRef = useRef({ cancelled: false });
 
@@ -21,6 +40,29 @@ export default function Chat() {
     const el = scrollerRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, streaming]);
+
+  // Discover which capabilities the admin has turned on. The `tools` flag
+  // routes chat through the agentic /chat/agent endpoint.
+  useEffect(() => {
+    let alive = true;
+    api
+      .getFeatureFlags()
+      .then((flags) => {
+        if (!alive) return;
+        const tools = flags.find((f) => f.key === "tools");
+        const enabled = Boolean(tools && tools.enabled);
+        setToolsEnabled(enabled);
+        // Default to the tool-using agent when the capability is on (matches
+        // the previous behaviour where tools-on routed through /chat/agent).
+        if (enabled) setMode((m) => (m === "chat" ? "tools" : m));
+      })
+      .catch(() => {
+        /* flags unreadable — stay on baseline chat */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const appendToLast = (chunk) =>
     setMessages((prev) => {
@@ -51,6 +93,32 @@ export default function Chat() {
       prev.map((m) => (m.traceId === traceId ? { ...m, score } : m))
     );
 
+  // Append a tool call to the last (assistant) message, with no result yet.
+  const addToolCall = (name, args) =>
+    setMessages((prev) => {
+      const next = prev.slice();
+      const last = next[next.length - 1];
+      const events = [...(last.toolEvents || []), { name, args, summary: null }];
+      next[next.length - 1] = { ...last, toolEvents: events };
+      return next;
+    });
+
+  // Attach a result summary to the most recent pending call of that tool.
+  const setToolResult = (name, summary) =>
+    setMessages((prev) => {
+      const next = prev.slice();
+      const last = next[next.length - 1];
+      const events = [...(last.toolEvents || [])];
+      for (let i = events.length - 1; i >= 0; i--) {
+        if (events[i].name === name && events[i].summary === null) {
+          events[i] = { ...events[i], summary };
+          break;
+        }
+      }
+      next[next.length - 1] = { ...last, toolEvents: events };
+      return next;
+    });
+
   const send = async (text) => {
     const content = text.trim();
     if (!content || streaming) return;
@@ -59,10 +127,22 @@ export default function Chat() {
     const run = { cancelled: false };
     runRef.current = run;
 
+    // The selected mode picks the endpoint: knowledge base (RAG), the tool
+    // agent, or plain chat. Tools mode only routes to the agent when enabled.
+    const useRag = mode === "rag";
+    const useAgent = mode === "tools" && toolsEnabled;
+
     const history = [...messages, { role: "user", content }];
     setMessages([
       ...history,
-      { role: "assistant", content: "", sources: null, traceId: null, score: null },
+      {
+        role: "assistant",
+        content: "",
+        sources: null,
+        traceId: null,
+        score: null,
+        toolEvents: [],
+      },
     ]);
     setInput("");
     setError(null);
@@ -76,6 +156,19 @@ export default function Chat() {
           if (run.cancelled) return;
           if (event.type === "sources") {
             setSourcesOnLast(event.sources);
+          } else if (event.type === "delta") {
+            appendToLast(event.content);
+          }
+        }
+      } else if (useAgent) {
+        const { traceId, stream } = await api.startAgentChat(history);
+        if (traceId) setTraceIdOnLast(traceId);
+        for await (const event of stream) {
+          if (run.cancelled) return;
+          if (event.type === "tool_call") {
+            addToolCall(event.name, event.args);
+          } else if (event.type === "tool_result") {
+            setToolResult(event.name, event.summary);
           } else if (event.type === "delta") {
             appendToLast(event.content);
           }
@@ -141,15 +234,43 @@ export default function Chat() {
           </p>
         </div>
         <div className="chat-head-actions">
-          <label className="chat-toggle" title="Answer from your uploaded knowledge base">
-            <input
-              type="checkbox"
-              checked={useRag}
-              onChange={(e) => setUseRag(e.target.checked)}
+          <div className="chat-modes" role="tablist" aria-label="Chat mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "chat"}
+              className={`chat-mode ${mode === "chat" ? "active" : ""}`}
+              onClick={() => setMode("chat")}
               disabled={streaming}
-            />
-            <span>Ground in knowledge base</span>
-          </label>
+              title="Standard movie chat from general knowledge"
+            >
+              💬 Chat
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "rag"}
+              className={`chat-mode ${mode === "rag" ? "active" : ""}`}
+              onClick={() => setMode("rag")}
+              disabled={streaming}
+              title="Answer from your uploaded knowledge base"
+            >
+              📚 Knowledge base
+            </button>
+            {toolsEnabled && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "tools"}
+                className={`chat-mode ${mode === "tools" ? "active" : ""}`}
+                onClick={() => setMode("tools")}
+                disabled={streaming}
+                title="CineBot uses read-only tools (catalog, showtimes, seats, your bookings) to answer from live data"
+              >
+                ⚡ Tools
+              </button>
+            )}
+          </div>
           {messages.length > 0 && (
             <button className="link-btn" onClick={reset} disabled={streaming}>
               New chat
@@ -163,7 +284,7 @@ export default function Chat() {
           <div className="chat-empty">
             <p>Try one of these to get started:</p>
             <div className="chat-suggestions">
-              {SUGGESTIONS.map((s) => (
+              {(mode === "tools" ? AGENT_SUGGESTIONS : SUGGESTIONS).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -180,6 +301,23 @@ export default function Chat() {
             const isLast = i === messages.length - 1;
             return (
               <div key={i} className={`chat-msg chat-msg-${m.role}`}>
+                {m.role === "assistant" &&
+                  m.toolEvents &&
+                  m.toolEvents.length > 0 && (
+                    <div className="chat-tool-events">
+                      {m.toolEvents.map((ev, j) => (
+                        <div key={j} className="chat-tool-row">
+                          <span className="chat-tool-icon">🔧</span>
+                          <span className="chat-tool-label">
+                            {TOOL_LABELS[ev.name] || ev.name}
+                          </span>
+                          <span className="chat-tool-summary">
+                            {ev.summary ? `— ${ev.summary}` : "…"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 <div className="chat-bubble">
                   {m.content || (streaming && isLast ? "…" : "")}
                   {streaming && isLast && m.content && (
@@ -247,7 +385,9 @@ export default function Chat() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
-            useRag ? "Ask about your uploaded docs..." : "Ask about a movie..."
+            mode === "rag"
+              ? "Ask about your uploaded docs..."
+              : "Ask about a movie..."
           }
           rows={1}
           disabled={streaming}

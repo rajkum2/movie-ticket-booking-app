@@ -25,6 +25,7 @@ function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [aiMenuOpen, setAiMenuOpen] = useState(false);
   const searchRef = useRef(null);
 
   useEffect(() => {
@@ -66,14 +67,50 @@ function Header() {
           Browse
         </NavLink>
         {user && (
-          <NavLink to="/summariser" className="nx-nav-link">
-            AI Summariser
-          </NavLink>
-        )}
-        {user && (
-          <NavLink to="/chat" className="nx-nav-link">
-            AI Chat
-          </NavLink>
+          <div className="nx-ai">
+            <button
+              type="button"
+              className="nx-nav-link nx-ai-btn"
+              onClick={() => setAiMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={aiMenuOpen}
+            >
+              AI <span className="nx-caret">▾</span>
+            </button>
+            {aiMenuOpen && (
+              <>
+                <div
+                  className="nx-menu-backdrop"
+                  onClick={() => setAiMenuOpen(false)}
+                />
+                <div className="nx-menu nx-ai-menu">
+                  <NavLink
+                    to="/chat"
+                    className="nx-menu-item"
+                    onClick={() => setAiMenuOpen(false)}
+                  >
+                    💬 AI Chat
+                  </NavLink>
+                  <NavLink
+                    to="/summariser"
+                    className="nx-menu-item"
+                    onClick={() => setAiMenuOpen(false)}
+                  >
+                    ✨ AI Summariser
+                  </NavLink>
+                  {user.role === "admin" && (
+                    <NavLink
+                      to="/knowledge"
+                      className="nx-menu-item"
+                      onClick={() => setAiMenuOpen(false)}
+                    >
+                      📚 Knowledge Base
+                    </NavLink>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         )}
         {user && (
           <NavLink to="/my-bookings" className="nx-nav-link">
@@ -83,11 +120,6 @@ function Header() {
         {user?.role === "admin" && (
           <NavLink to="/admin" className="nx-nav-link">
             Admin
-          </NavLink>
-        )}
-        {user?.role === "admin" && (
-          <NavLink to="/knowledge" className="nx-nav-link">
-            Knowledge Base
           </NavLink>
         )}
       </nav>

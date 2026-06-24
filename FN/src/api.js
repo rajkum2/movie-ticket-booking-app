@@ -235,6 +235,73 @@ export async function startChat(messages) {
   return { traceId, stream: stream() };
 }
 
+// ---- Feature flags (capability toggles) ----
+export const getFeatureFlags = () => request("/feature-flags");
+export const setFeatureFlag = (key, enabled) =>
+  request(`/feature-flags/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    body: JSON.stringify({ enabled }),
+  });
+
+// ---- Agentic chat (tool-using CineBot) ----
+// Same NDJSON stream shape as startRagChat, but events are
+// tool_call / tool_result / delta / done.
+export async function startAgentChat(messages) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/chat/agent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ messages }),
+  });
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  const traceId = res.headers.get("X-Trace-Id") || null;
+
+  async function* stream() {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        try {
+          yield JSON.parse(line);
+        } catch {
+          /* skip malformed lines */
+        }
+      }
+    }
+    const tail = buffer.trim();
+    if (tail) {
+      try {
+        yield JSON.parse(tail);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return { traceId, stream: stream() };
+}
+
 // Submit thumbs feedback for a trace. value: 0 (down) or 1 (up).
 export const scoreTrace = (traceId, value, comment) =>
   request(`/traces/${encodeURIComponent(traceId)}/score`, {

@@ -2,11 +2,41 @@
 -- It creates the tables, inserts a few sample movies, and the backend seeds
 -- two demo users on startup.
 --
--- For 115+ additional diverse movies (great for search/filter testing),
--- also run `seed-movies.sql` after this file.
+-- Order matters: `users` is created before anything that references it, so
+-- this file is safe to run on a brand-new (empty) project. The `alter table`
+-- statements are idempotent and keep older databases — created before some
+-- columns existed — up to date; on a fresh project they are no-ops.
+--
+-- For a clean, fresh-project-only version without the back-compat ALTERs, see
+-- `schema.fresh.sql`. For 115+ additional movies (great for search/filter
+-- testing), also run `seed-movies.sql` after this file.
 
 -- ---------------------------------------------------------------------------
--- Tables
+-- Extensions
+-- ---------------------------------------------------------------------------
+create extension if not exists vector;
+
+-- ---------------------------------------------------------------------------
+-- Users (created first — bookings and rag_documents reference it)
+--
+-- OAuth users (e.g. Google sign-in) don't have a local password, so
+-- password_hash is nullable.
+-- ---------------------------------------------------------------------------
+create table if not exists users (
+    id              bigint generated always as identity primary key,
+    email           text    not null unique,
+    password_hash   text,
+    full_name       text,
+    role            text    not null default 'user' check (role in ('admin', 'user')),
+    session_token   text    unique,
+    created_at      timestamptz not null default now()
+);
+
+-- For databases predating Google sign-in: make password_hash nullable.
+alter table users alter column password_hash drop not null;
+
+-- ---------------------------------------------------------------------------
+-- Movies
 -- ---------------------------------------------------------------------------
 create table if not exists movies (
     id               bigint generated always as identity primary key,
@@ -19,21 +49,57 @@ create table if not exists movies (
     rating           numeric(2,1),
     price            numeric(8,2) not null default 12.00,
     showtimes        jsonb   not null default '[]'::jsonb,
-    trailer_url      text
+    trailer_url      text,
+    backdrop_url     text,
+    ai_summary       text
 );
 
--- If the movies table predates trailer_url / backdrop_url, add the columns.
+-- If the movies table predates these columns, add them.
 alter table movies add column if not exists trailer_url text;
 alter table movies add column if not exists backdrop_url text;
-
 -- Cache of AI-generated summaries (DeepSeek). Populated lazily on first request.
 alter table movies add column if not exists ai_summary text;
 
 -- ---------------------------------------------------------------------------
+-- Feature flags (server-side capability toggles)
+--
+-- Global on/off switches for experimental chat capabilities (e.g. tool use).
+-- Admins flip them via PUT /feature-flags/{key}; they apply to ALL users, so
+-- turning one off instantly reverts everyone to the baseline behaviour — handy
+-- for comparing a capability on vs off. The backend seeds any missing known
+-- flags on startup (see BN/featureflags.py KNOWN_FLAGS), so you usually don't
+-- insert rows here.
+-- ---------------------------------------------------------------------------
+create table if not exists feature_flags (
+    key         text primary key,
+    enabled     boolean     not null default false,
+    label       text,
+    description text,
+    updated_at  timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
+-- Bookings
+-- ---------------------------------------------------------------------------
+create table if not exists bookings (
+    id              bigint generated always as identity primary key,
+    movie_id        bigint not null references movies(id) on delete cascade,
+    user_id         bigint references users(id) on delete set null,
+    showtime        text   not null,
+    customer_name   text   not null,
+    customer_email  text   not null,
+    seats           jsonb  not null default '[]'::jsonb,
+    total_amount    numeric(10,2) not null default 0,
+    payment_status  text   not null default 'PAID',
+    created_at      timestamptz not null default now()
+);
+
+-- If bookings already existed without user_id, add the column.
+alter table bookings add column if not exists user_id bigint references users(id) on delete set null;
+
+-- ---------------------------------------------------------------------------
 -- RAG knowledge base (pgvector + Jina embeddings)
 -- ---------------------------------------------------------------------------
-create extension if not exists vector;
-
 create table if not exists rag_documents (
     id           bigint generated always as identity primary key,
     title        text not null,
@@ -51,12 +117,21 @@ create table if not exists rag_chunks (
     created_at   timestamptz not null default now()
 );
 
+-- ---------------------------------------------------------------------------
+-- Indexes
+-- ---------------------------------------------------------------------------
+create index if not exists idx_bookings_movie_showtime
+    on bookings (movie_id, showtime);
+create index if not exists idx_bookings_user on bookings (user_id);
+create index if not exists idx_users_token on users (session_token);
 create index if not exists idx_rag_chunks_doc on rag_chunks (document_id);
 create index if not exists idx_rag_chunks_embedding
     on rag_chunks using hnsw (embedding vector_cosine_ops);
 
+-- ---------------------------------------------------------------------------
 -- Vector similarity search via supabase-py rpc(). Returns the top matching
 -- chunks above the threshold, ordered by cosine similarity (1 - distance).
+-- ---------------------------------------------------------------------------
 create or replace function match_rag_chunks(
     query_embedding vector(1024),
     match_threshold float default 0.4,
@@ -80,41 +155,6 @@ language sql stable as $$
     order by c.embedding <=> query_embedding
     limit match_count;
 $$;
-
--- OAuth users (e.g. Google sign-in) don't have a local password; make
--- password_hash nullable so we can store them in the same table.
-alter table users alter column password_hash drop not null;
-
-create table if not exists users (
-    id              bigint generated always as identity primary key,
-    email           text    not null unique,
-    password_hash   text    not null,
-    full_name       text,
-    role            text    not null default 'user' check (role in ('admin', 'user')),
-    session_token   text    unique,
-    created_at      timestamptz not null default now()
-);
-
-create table if not exists bookings (
-    id              bigint generated always as identity primary key,
-    movie_id        bigint not null references movies(id) on delete cascade,
-    user_id         bigint references users(id) on delete set null,
-    showtime        text   not null,
-    customer_name   text   not null,
-    customer_email  text   not null,
-    seats           jsonb  not null default '[]'::jsonb,
-    total_amount    numeric(10,2) not null default 0,
-    payment_status  text   not null default 'PAID',
-    created_at      timestamptz not null default now()
-);
-
--- If bookings already existed without user_id, add the column.
-alter table bookings add column if not exists user_id bigint references users(id) on delete set null;
-
-create index if not exists idx_bookings_movie_showtime
-    on bookings (movie_id, showtime);
-create index if not exists idx_bookings_user on bookings (user_id);
-create index if not exists idx_users_token on users (session_token);
 
 -- ---------------------------------------------------------------------------
 -- Sample movies
@@ -156,8 +196,8 @@ values
 -- The backend seeds two demo accounts on startup (with proper bcrypt hashes),
 -- so you do not need to insert them here:
 --
---   admin@cinebook.app    /  admin123    (role: admin)
---   user@cinebook.app     /  user123     (role: user)
+--   admin@cinebook.com    /  admin123    (role: admin)
+--   user@cinebook.com     /  user123     (role: user)
 --
 -- If you'd rather create more users, POST to /auth/register (creates a normal
 -- user) or have an admin call POST /users.

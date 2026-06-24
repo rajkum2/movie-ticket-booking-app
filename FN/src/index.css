@@ -1365,6 +1365,45 @@ body {
   margin: 4px 0;
 }
 
+/* ---------- AI dropdown (header nav) ---------- */
+.nx-ai {
+  position: relative;
+  display: inline-flex;
+}
+.nx-ai-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+}
+.nx-ai-btn .nx-caret {
+  font-size: 0.65rem;
+}
+.nx-ai-menu {
+  left: 0;
+  right: auto;
+  min-width: 200px;
+}
+.nx-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  text-decoration: none;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+}
+.nx-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.nx-menu-item.active {
+  color: #fff;
+  font-weight: 600;
+}
+
 /* App main: pull below the fixed header for legacy pages, but the home
    page opts back out into the hero. */
 .app-main {
@@ -2133,6 +2172,39 @@ body {
 .chat-toggle input {
   accent-color: #e50914;
 }
+
+/* ---------- Chat mode switcher ---------- */
+.chat-modes {
+  display: inline-flex;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.chat-mode {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.82rem;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.chat-mode:hover:not(:disabled):not(.active) {
+  color: #fff;
+}
+.chat-mode.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.chat-mode:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
 .chat-sources {
   margin-top: 6px;
   display: flex;
@@ -2160,6 +2232,131 @@ body {
   font-size: 0.78rem;
   color: #888;
   font-style: italic;
+}
+
+/* ---------- Agentic chat: tool-use indicators ---------- */
+.chat-tools-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 2px 9px;
+  font-size: 0.78rem;
+  color: #ffe9b3;
+  background: rgba(229, 160, 9, 0.16);
+  border: 1px solid rgba(229, 160, 9, 0.45);
+  border-radius: 999px;
+}
+.chat-tool-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+  max-width: 78%;
+}
+.chat-tool-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #9a9a9a;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+}
+.chat-tool-icon {
+  font-size: 0.75rem;
+}
+.chat-tool-label {
+  color: #cfcfcf;
+}
+.chat-tool-summary {
+  color: #888;
+}
+
+/* ---------- Admin: capability toggles ---------- */
+.capability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.capability-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+}
+.capability-info {
+  flex: 1;
+}
+.capability-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.capability-state {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.capability-state.on {
+  color: #b6f2c4;
+  background: rgba(46, 204, 113, 0.16);
+  border: 1px solid rgba(46, 204, 113, 0.4);
+}
+.capability-state.off {
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.capability-desc {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #9a9a9a;
+}
+/* iOS-style switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex: none;
+  cursor: pointer;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+.switch-track::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+.switch input:checked + .switch-track {
+  background: #e50914;
+}
+.switch input:checked + .switch-track::before {
+  transform: translateX(20px);
+}
+.switch input:disabled + .switch-track {
+  opacity: 0.5;
 }
 
 /* ---------- Knowledge Base admin page ---------- */
