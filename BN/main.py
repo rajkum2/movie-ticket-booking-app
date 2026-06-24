@@ -56,10 +56,13 @@ from search import SearchFilters, SearchQuery, parse_query
 from chat import ChatRequest, stream_chat, stream_completion
 import rag
 import agent
+import agent_advanced
 import featureflags
 import observability
+from bookings_service import execute_cancel_booking, execute_create_booking
 from pydantic import BaseModel, Field
 from models import (
+    AgentAction,
     Booking,
     BookingCreate,
     GoogleLoginRequest,
@@ -512,6 +515,90 @@ def chat_agent(payload: ChatRequest, user: dict = Depends(get_current_user)):
 
 
 # ---------------------------------------------------------------------------
+# Layer 3b — Action-taking agent. The agent only PROPOSES writes (emits a
+# confirm_request); the actual write happens in /chat/agent/execute after the
+# user confirms. Both gated by the `tools_write` flag.
+# ---------------------------------------------------------------------------
+@app.post("/chat/agent/advanced")
+def chat_agent_advanced(payload: ChatRequest, user: dict = Depends(get_current_user)):
+    if payload.messages[-1].role != "user":
+        raise HTTPException(
+            status_code=400, detail="Last message must be from the user"
+        )
+    if not featureflags.is_enabled("tools_write"):
+        raise HTTPException(status_code=403, detail="Agent actions are not enabled")
+
+    def ndjson(obj: dict) -> str:
+        return json.dumps(obj, ensure_ascii=False) + "\n"
+
+    ctx = observability.TraceContext(
+        name="chat-agent-advanced",
+        user_id=str(user["id"]),
+        tags=["chat", "agent", "tools_write"],
+        metadata={"turn_count": len(payload.messages)},
+    )
+
+    def generate():
+        with ctx:
+            try:
+                for event in agent_advanced.stream_agent_chat(payload.messages, user):
+                    yield ndjson(event)
+            except RuntimeError as exc:
+                log.error("DeepSeek not configured: %s", exc)
+                yield ndjson({"type": "delta", "content": "[Chat is not configured on the server.]"})
+            except Exception as exc:
+                log.exception("Advanced agent chat failed")
+                yield ndjson({"type": "delta", "content": f"\n\n[Error: {exc}]"})
+            yield ndjson({"type": "done"})
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
+        headers={"X-Trace-Id": ctx.trace_id},
+    )
+
+
+@app.post("/chat/agent/execute")
+def chat_agent_execute(payload: AgentAction, user: dict = Depends(get_current_user)):
+    """The ONLY place an agent-initiated write happens. Re-validates everything
+    server-side and is auth-scoped — the propose step is UX, not a security
+    control, so this never trusts the proposal blindly."""
+    if not featureflags.is_enabled("tools_write"):
+        raise HTTPException(status_code=403, detail="Agent actions are not enabled")
+    sb = get_supabase()
+
+    ctx = observability.TraceContext(
+        name="agent-execute",
+        user_id=str(user["id"]),
+        tags=["agent", "execute", payload.action],
+        metadata={"action": payload.action},
+    )
+    with ctx:
+        if payload.action == "create_booking":
+            try:
+                movie_id = int(payload.args["movie_id"])
+                showtime = str(payload.args["showtime"])
+                seats = [str(s) for s in payload.args["seats"]]
+            except (KeyError, TypeError, ValueError):
+                raise HTTPException(
+                    status_code=422,
+                    detail="create_booking requires movie_id, showtime, seats",
+                )
+            booking = execute_create_booking(sb, user, movie_id, showtime, seats)
+            return {"status": "ok", "action": "create_booking", "booking": booking}
+
+        # cancel_booking
+        try:
+            booking_id = int(payload.args["booking_id"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(
+                status_code=422, detail="cancel_booking requires booking_id"
+            )
+        result = execute_cancel_booking(sb, user, booking_id)
+        return {"status": "ok", "action": "cancel_booking", "result": result}
+
+
+# ---------------------------------------------------------------------------
 # Trace scoring — thumbs feedback from the chat / summariser UI
 # ---------------------------------------------------------------------------
 class ScoreRequest(BaseModel):
@@ -791,57 +878,25 @@ def get_seat_availability(movie_id: int, showtime: str = Query(...)):
 
 @app.post("/bookings", response_model=Booking, status_code=201)
 def create_booking(payload: BookingCreate, user: dict = Depends(get_current_user)):
+    """Create a booking via the shared, atomic service (same code path the
+    action-taking agent uses through /chat/agent/execute)."""
     sb = get_supabase()
-
-    movie_res = sb.table("movies").select("*").eq("id", payload.movie_id).execute()
-    if not movie_res.data:
-        raise HTTPException(status_code=404, detail="Movie not found")
-    movie = movie_res.data[0]
-
-    if payload.showtime not in (movie.get("showtimes") or []):
-        raise HTTPException(status_code=400, detail="Invalid showtime for this movie")
-
-    existing = (
-        sb.table("bookings")
-        .select("seats")
-        .eq("movie_id", payload.movie_id)
-        .eq("showtime", payload.showtime)
-        .execute()
+    return execute_create_booking(
+        sb,
+        user,
+        payload.movie_id,
+        payload.showtime,
+        payload.seats,
+        customer_name=payload.customer_name,
+        customer_email=payload.customer_email,
     )
-    taken = set()
-    for row in existing.data or []:
-        taken.update(row.get("seats") or [])
-    clash = sorted(set(payload.seats) & taken)
-    if clash:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Seats already booked: {', '.join(clash)}",
-        )
 
-    total = round(float(movie["price"]) * len(payload.seats), 2)
 
-    insert = (
-        sb.table("bookings")
-        .insert(
-            {
-                "movie_id": payload.movie_id,
-                "user_id": user["id"],
-                "showtime": payload.showtime,
-                "customer_name": payload.customer_name,
-                "customer_email": payload.customer_email,
-                "seats": payload.seats,
-                "total_amount": total,
-                "payment_status": "PAID",
-            }
-        )
-        .execute()
-    )
-    if not insert.data:
-        raise HTTPException(status_code=500, detail="Failed to create booking")
-
-    booking = insert.data[0]
-    booking["movie_title"] = movie["title"]
-    return booking
+@app.delete("/bookings/{booking_id}")
+def cancel_booking(booking_id: int, user: dict = Depends(get_current_user)):
+    """Cancel one of the caller's own bookings (frees the seats)."""
+    sb = get_supabase()
+    return execute_cancel_booking(sb, user, booking_id)
 
 
 def _attach_movie_titles(sb, bookings: List[dict]) -> List[dict]:

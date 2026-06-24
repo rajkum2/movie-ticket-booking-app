@@ -63,6 +63,48 @@ create table if not exists bookings (
     created_at      timestamptz not null default now()
 );
 
+-- Per-seat lock table + atomic booking transaction (Layer 3b).
+-- The primary key prevents double-booking even under concurrent requests.
+create table if not exists booking_seats (
+    movie_id   bigint not null,
+    showtime   text   not null,
+    seat       text   not null,
+    booking_id bigint not null references bookings(id) on delete cascade,
+    primary key (movie_id, showtime, seat)
+);
+
+create or replace function create_booking_tx(
+    p_user_id        bigint,
+    p_movie_id       bigint,
+    p_showtime       text,
+    p_seats          text[],
+    p_customer_name  text,
+    p_customer_email text,
+    p_total          numeric
+) returns bookings
+language plpgsql
+as $$
+declare
+    new_booking bookings;
+    s text;
+begin
+    insert into bookings (movie_id, user_id, showtime, customer_name,
+                          customer_email, seats, total_amount, payment_status)
+    values (p_movie_id, p_user_id, p_showtime, p_customer_name,
+            p_customer_email, to_jsonb(p_seats), p_total, 'PAID')
+    returning * into new_booking;
+
+    foreach s in array p_seats loop
+        insert into booking_seats (movie_id, showtime, seat, booking_id)
+        values (p_movie_id, p_showtime, s, new_booking.id);
+    end loop;
+
+    return new_booking;
+exception when unique_violation then
+    raise exception 'SEAT_CLASH';
+end;
+$$;
+
 -- RAG knowledge base (pgvector + Jina embeddings)
 create table if not exists rag_documents (
     id           bigint generated always as identity primary key,

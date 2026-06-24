@@ -78,6 +78,8 @@ export const createBooking = (payload) =>
 
 export const getBookings = () => request("/bookings");
 export const getMyBookings = () => request("/bookings/me");
+export const cancelBooking = (id) =>
+  request(`/bookings/${id}`, { method: "DELETE" });
 
 // ---- Uploads (admin) ----
 export async function uploadPoster(file) {
@@ -301,6 +303,72 @@ export async function startAgentChat(messages) {
   }
   return { traceId, stream: stream() };
 }
+
+// ---- Action-taking agent (Layer 3b) ----
+// NDJSON stream like startAgentChat, plus a confirm_request event the UI turns
+// into a confirmation card. Path: /chat/agent/advanced.
+export async function startAdvancedAgentChat(messages) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/chat/agent/advanced`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ messages }),
+  });
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  const traceId = res.headers.get("X-Trace-Id") || null;
+
+  async function* stream() {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        try {
+          yield JSON.parse(line);
+        } catch {
+          /* skip malformed lines */
+        }
+      }
+    }
+    const tail = buffer.trim();
+    if (tail) {
+      try {
+        yield JSON.parse(tail);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return { traceId, stream: stream() };
+}
+
+// Execute a confirmed agent action. This is the only call that performs a write.
+export const executeAgentAction = (action, args) =>
+  request("/chat/agent/execute", {
+    method: "POST",
+    body: JSON.stringify({ action, args }),
+  });
 
 // Submit thumbs feedback for a trace. value: 0 (down) or 1 (up).
 export const scoreTrace = (traceId, value, comment) =>

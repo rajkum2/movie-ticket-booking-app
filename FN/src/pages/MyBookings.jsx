@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMyBookings } from "../api";
+import { cancelBooking, getMyBookings } from "../api";
 
 export default function MyBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,6 +15,21 @@ export default function MyBookings() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCancel = async (id) => {
+    if (cancelling) return;
+    if (!window.confirm(`Cancel booking #${id}? This frees the seats.`)) return;
+    setCancelling(id);
+    setError(null);
+    try {
+      await cancelBooking(id);
+      setBookings((prev) => prev.filter((b) => b.id !== id));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   return (
     <section className="admin-page">
@@ -40,6 +56,7 @@ export default function MyBookings() {
                 <th>Amount</th>
                 <th>Status</th>
                 <th>Booked At</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -57,6 +74,15 @@ export default function MyBookings() {
                     {b.created_at
                       ? new Date(b.created_at).toLocaleString()
                       : "—"}
+                  </td>
+                  <td>
+                    <button
+                      className="link-btn"
+                      onClick={() => handleCancel(b.id)}
+                      disabled={cancelling === b.id}
+                    >
+                      {cancelling === b.id ? "Cancelling…" : "Cancel"}
+                    </button>
                   </td>
                 </tr>
               ))}

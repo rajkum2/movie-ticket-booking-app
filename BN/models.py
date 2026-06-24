@@ -110,6 +110,15 @@ class UserUpdate(BaseModel):
     role: Optional[Role] = None
 
 
+class AgentAction(BaseModel):
+    """A confirmed action the agent proposed, sent to /chat/agent/execute.
+
+    `args` is validated per-action inside the endpoint (the endpoint is the
+    sole writer and re-validates everything server-side)."""
+    action: Literal["create_booking", "cancel_booking"]
+    args: dict
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str

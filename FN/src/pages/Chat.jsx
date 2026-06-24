@@ -16,6 +16,14 @@ const AGENT_SUGGESTIONS = [
   "What have I booked so far?",
 ];
 
+// Shown when the "Book with AI" capability is on — these exercise actions.
+const BOOK_SUGGESTIONS = [
+  "Book me 2 seats for the 9pm show of Interstellar",
+  "What's free for The Dark Knight tonight? Then book me one seat",
+  "I want 3 seats for Inception this evening",
+  "Cancel my most recent booking",
+];
+
 // Friendly labels for the grey tool-activity rows.
 const TOOL_LABELS = {
   search_movies: "Searched the catalog",
@@ -24,6 +32,8 @@ const TOOL_LABELS = {
   get_seat_availability: "Checked seat availability",
   get_my_bookings: "Looked up your bookings",
   current_datetime: "Checked the current date/time",
+  propose_booking: "Prepared a booking",
+  propose_cancellation: "Prepared a cancellation",
 };
 
 export default function Chat() {
@@ -31,8 +41,9 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(null);
-  const [mode, setMode] = useState("chat"); // "chat" | "rag" | "tools"
+  const [mode, setMode] = useState("chat"); // "chat" | "rag" | "tools" | "book"
   const [toolsEnabled, setToolsEnabled] = useState(false);
+  const [writeEnabled, setWriteEnabled] = useState(false);
   const scrollerRef = useRef(null);
   const runRef = useRef({ cancelled: false });
 
@@ -50,11 +61,14 @@ export default function Chat() {
       .then((flags) => {
         if (!alive) return;
         const tools = flags.find((f) => f.key === "tools");
+        const write = flags.find((f) => f.key === "tools_write");
         const enabled = Boolean(tools && tools.enabled);
+        const writeOn = Boolean(write && write.enabled);
         setToolsEnabled(enabled);
-        // Default to the tool-using agent when the capability is on (matches
-        // the previous behaviour where tools-on routed through /chat/agent).
-        if (enabled) setMode((m) => (m === "chat" ? "tools" : m));
+        setWriteEnabled(writeOn);
+        // Default to the most capable enabled mode (book > tools > chat).
+        if (writeOn) setMode((m) => (m === "chat" ? "book" : m));
+        else if (enabled) setMode((m) => (m === "chat" ? "tools" : m));
       })
       .catch(() => {
         /* flags unreadable — stay on baseline chat */
@@ -119,6 +133,23 @@ export default function Chat() {
       return next;
     });
 
+  // Attach a pending confirmation (from a confirm_request event) to the last
+  // assistant message; the UI renders it as a Confirm/Cancel card.
+  const setConfirmOnLast = (confirm) =>
+    setMessages((prev) => {
+      const next = prev.slice();
+      const last = next[next.length - 1];
+      next[next.length - 1] = { ...last, confirm };
+      return next;
+    });
+
+  const updateConfirm = (idx, patch) =>
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i === idx ? { ...m, confirm: { ...m.confirm, ...patch } } : m
+      )
+    );
+
   const send = async (text) => {
     const content = text.trim();
     if (!content || streaming) return;
@@ -127,9 +158,11 @@ export default function Chat() {
     const run = { cancelled: false };
     runRef.current = run;
 
-    // The selected mode picks the endpoint: knowledge base (RAG), the tool
-    // agent, or plain chat. Tools mode only routes to the agent when enabled.
+    // The selected mode picks the endpoint: knowledge base (RAG), the action
+    // agent (book), the read-only tool agent, or plain chat. The agent modes
+    // only route to their endpoints when the matching capability is enabled.
     const useRag = mode === "rag";
+    const useBook = mode === "book" && writeEnabled;
     const useAgent = mode === "tools" && toolsEnabled;
 
     const history = [...messages, { role: "user", content }];
@@ -158,6 +191,26 @@ export default function Chat() {
             setSourcesOnLast(event.sources);
           } else if (event.type === "delta") {
             appendToLast(event.content);
+          }
+        }
+      } else if (useBook) {
+        const { traceId, stream } = await api.startAdvancedAgentChat(history);
+        if (traceId) setTraceIdOnLast(traceId);
+        for await (const event of stream) {
+          if (run.cancelled) return;
+          if (event.type === "tool_call") {
+            addToolCall(event.name, event.args);
+          } else if (event.type === "tool_result") {
+            setToolResult(event.name, event.summary);
+          } else if (event.type === "delta") {
+            appendToLast(event.content);
+          } else if (event.type === "confirm_request") {
+            setConfirmOnLast({
+              action: event.action,
+              args: event.args,
+              summary: event.summary,
+              status: "pending",
+            });
           }
         }
       } else if (useAgent) {
@@ -201,6 +254,44 @@ export default function Chat() {
       setError(`Could not save feedback: ${e.message}`);
     }
   };
+
+  // Confirm a proposed action — the ONLY place a write is triggered. The
+  // server re-validates everything, so a stale proposal fails safely (e.g. 409).
+  const handleConfirmAction = async (idx) => {
+    const confirm = messages[idx]?.confirm;
+    if (!confirm || confirm.status !== "pending" || streaming) return;
+    updateConfirm(idx, { status: "executing" });
+    try {
+      const res = await api.executeAgentAction(confirm.action, confirm.args);
+      updateConfirm(idx, { status: "done" });
+      let note = "✅ Done.";
+      if (confirm.action === "create_booking" && res.booking) {
+        const b = res.booking;
+        note = `✅ Booked! Confirmation #${b.id} — ${(b.seats || []).join(
+          ", "
+        )} for ${b.movie_title || "movie " + b.movie_id} at ${b.showtime}. Total $${Number(
+          b.total_amount
+        ).toFixed(2)}.`;
+      } else if (confirm.action === "cancel_booking") {
+        note = `✅ Cancelled booking #${confirm.args.booking_id}. Your seats are freed.`;
+      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: note,
+          sources: null,
+          traceId: null,
+          score: null,
+          toolEvents: [],
+        },
+      ]);
+    } catch (e) {
+      updateConfirm(idx, { status: "error", error: e.message });
+    }
+  };
+
+  const handleDeclineAction = (idx) => updateConfirm(idx, { status: "declined" });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -270,6 +361,19 @@ export default function Chat() {
                 ⚡ Tools
               </button>
             )}
+            {writeEnabled && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "book"}
+                className={`chat-mode ${mode === "book" ? "active" : ""}`}
+                onClick={() => setMode("book")}
+                disabled={streaming}
+                title="CineBot can complete bookings and cancellations — every action needs your confirmation first"
+              >
+                🎟️ Book with AI
+              </button>
+            )}
           </div>
           {messages.length > 0 && (
             <button className="link-btn" onClick={reset} disabled={streaming}>
@@ -284,7 +388,12 @@ export default function Chat() {
           <div className="chat-empty">
             <p>Try one of these to get started:</p>
             <div className="chat-suggestions">
-              {(mode === "tools" ? AGENT_SUGGESTIONS : SUGGESTIONS).map((s) => (
+              {(mode === "book"
+                ? BOOK_SUGGESTIONS
+                : mode === "tools"
+                ? AGENT_SUGGESTIONS
+                : SUGGESTIONS
+              ).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -318,12 +427,58 @@ export default function Chat() {
                       ))}
                     </div>
                   )}
-                <div className="chat-bubble">
-                  {m.content || (streaming && isLast ? "…" : "")}
-                  {streaming && isLast && m.content && (
-                    <span className="chat-cursor">▍</span>
-                  )}
-                </div>
+                {(m.content || (streaming && isLast)) && (
+                  <div className="chat-bubble">
+                    {m.content || "…"}
+                    {streaming && isLast && m.content && (
+                      <span className="chat-cursor">▍</span>
+                    )}
+                  </div>
+                )}
+                {m.role === "assistant" && m.confirm && (
+                  <div className="chat-confirm">
+                    <div className="chat-confirm-summary">
+                      <span className="chat-confirm-icon">
+                        {m.confirm.action === "cancel_booking" ? "🗑️" : "🎟️"}
+                      </span>
+                      {m.confirm.summary}
+                    </div>
+                    {m.confirm.status === "pending" && (
+                      <div className="chat-confirm-actions">
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          onClick={() => handleConfirmAction(i)}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          className="link-btn"
+                          onClick={() => handleDeclineAction(i)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                    {m.confirm.status === "executing" && (
+                      <div className="chat-confirm-status">Processing…</div>
+                    )}
+                    {m.confirm.status === "done" && (
+                      <div className="chat-confirm-status done">✅ Confirmed</div>
+                    )}
+                    {m.confirm.status === "declined" && (
+                      <div className="chat-confirm-status">
+                        Cancelled — nothing was changed.
+                      </div>
+                    )}
+                    {m.confirm.status === "error" && (
+                      <div className="chat-confirm-status error">
+                        ⚠️ {m.confirm.error}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {m.role === "assistant" && m.sources && m.sources.length > 0 && (
                   <div className="chat-sources">
                     <span className="chat-sources-label">Sources:</span>

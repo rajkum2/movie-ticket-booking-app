@@ -2205,6 +2205,45 @@ body {
   cursor: default;
   opacity: 0.7;
 }
+
+/* ---------- Action agent: confirmation card ---------- */
+.chat-confirm {
+  margin-top: 8px;
+  max-width: 78%;
+  background: var(--surface-2);
+  border: 1px solid rgba(229, 160, 9, 0.5);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.chat-confirm-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.92rem;
+  color: #fff;
+  line-height: 1.4;
+}
+.chat-confirm-icon {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+.chat-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.chat-confirm-status {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.chat-confirm-status.done {
+  color: var(--green);
+}
+.chat-confirm-status.error {
+  color: var(--accent-hover);
+}
 .chat-sources {
   margin-top: 6px;
   display: flex;

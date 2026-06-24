@@ -36,6 +36,16 @@ KNOWN_FLAGS: List[dict] = [
         ),
         "default": False,
     },
+    {
+        "key": "tools_write",
+        "label": "Agent actions (booking)",
+        "description": (
+            "Let CineBot complete bookings and cancellations end to end. The "
+            "agent only proposes the action — every write still requires the "
+            "user to click Confirm, and the server re-validates before writing."
+        ),
+        "default": False,
+    },
 ]
 
 DEFAULTS = {f["key"]: f for f in KNOWN_FLAGS}
