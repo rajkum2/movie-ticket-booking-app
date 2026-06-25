@@ -53,3 +53,38 @@ exception when unique_violation then
     raise exception 'SEAT_CLASH';
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Per-user agent memory (the `memory` capability). Same pgvector + Jina stack
+-- as RAG, scoped per user. match_user_memories takes p_user_id so the backend
+-- can never read another user's memories.
+-- ---------------------------------------------------------------------------
+create extension if not exists vector;
+
+create table if not exists user_memories (
+    id         bigint generated always as identity primary key,
+    user_id    bigint not null references users(id) on delete cascade,
+    content    text   not null,
+    embedding  vector(1024) not null,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists idx_user_memories_user on user_memories (user_id);
+create index if not exists idx_user_memories_embedding
+    on user_memories using hnsw (embedding vector_cosine_ops);
+
+create or replace function match_user_memories(
+    p_user_id       bigint,
+    query_embedding vector(1024),
+    match_threshold float default 0.3,
+    match_count     int default 5
+)
+returns table (id bigint, content text, similarity float)
+language sql stable as $$
+    select m.id, m.content, 1 - (m.embedding <=> query_embedding) as similarity
+    from user_memories m
+    where m.user_id = p_user_id
+      and 1 - (m.embedding <=> query_embedding) >= match_threshold
+    order by m.embedding <=> query_embedding
+    limit match_count;
+$$;

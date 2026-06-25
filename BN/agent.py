@@ -30,6 +30,9 @@ from database import get_supabase
 from observability import get_prompt
 from summariser import DEEPSEEK_MODEL, get_deepseek_client
 
+import featureflags
+import memory
+
 log = logging.getLogger("uvicorn.error")
 
 MAX_ITERATIONS = 5
@@ -287,6 +290,14 @@ def stream_agent_chat(messages, user: dict) -> Iterator[dict]:
     sb = get_supabase()
     system_text, prompt_obj = get_prompt("agent-system")
 
+    # Memory is an optional capability (the `memory` flag) — when on, the agent
+    # gets recall_memory/remember tools and a prompt nudge to use them.
+    use_memory = featureflags.is_enabled("memory")
+    tools = TOOLS + (memory.MEMORY_TOOLS if use_memory else [])
+    dispatch = {**DISPATCH, **(memory.MEMORY_DISPATCH if use_memory else {})}
+    if use_memory:
+        system_text = system_text + memory.MEMORY_PROMPT_SNIPPET
+
     convo = [{"role": "system", "content": system_text}] + [
         {"role": m.role, "content": m.content} for m in messages
     ]
@@ -295,7 +306,7 @@ def stream_agent_chat(messages, user: dict) -> Iterator[dict]:
         kwargs = {
             "model": DEEPSEEK_MODEL,
             "messages": convo,
-            "tools": TOOLS,
+            "tools": tools,
             "tool_choice": "auto",
             "temperature": 0.4,
         }
@@ -339,7 +350,7 @@ def stream_agent_chat(messages, user: dict) -> Iterator[dict]:
 
             yield {"type": "tool_call", "name": name, "args": args}
 
-            fn = DISPATCH.get(name)
+            fn = dispatch.get(name)
             if fn is None:
                 result, summary = {"error": f"Unknown tool: {name}"}, "unknown tool"
             else:

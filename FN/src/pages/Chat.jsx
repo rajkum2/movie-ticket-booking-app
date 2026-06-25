@@ -34,6 +34,8 @@ const TOOL_LABELS = {
   current_datetime: "Checked the current date/time",
   propose_booking: "Prepared a booking",
   propose_cancellation: "Prepared a cancellation",
+  recall_memory: "🧠 Recalled what it knows about you",
+  remember: "🧠 Remembered",
 };
 
 export default function Chat() {

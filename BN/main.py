@@ -58,6 +58,7 @@ import rag
 import agent
 import agent_advanced
 import featureflags
+import memory
 import observability
 from bookings_service import execute_cancel_booking, execute_create_booking
 from pydantic import BaseModel, Field
@@ -596,6 +597,23 @@ def chat_agent_execute(payload: AgentAction, user: dict = Depends(get_current_us
             )
         result = execute_cancel_booking(sb, user, booking_id)
         return {"status": "ok", "action": "cancel_booking", "result": result}
+
+
+# ---------------------------------------------------------------------------
+# Agent memory — let users see and clear what CineBot remembers about them.
+# (Writes happen via the `remember` agent tool; these are read/delete only.)
+# ---------------------------------------------------------------------------
+@app.get("/memories")
+def list_memories(user: dict = Depends(get_current_user)):
+    sb = get_supabase()
+    return memory.list_memories(user["id"], sb)
+
+
+@app.delete("/memories/{memory_id}", status_code=204)
+def delete_memory(memory_id: int, user: dict = Depends(get_current_user)):
+    sb = get_supabase()
+    memory.delete_memory(user["id"], memory_id, sb)
+    return None
 
 
 # ---------------------------------------------------------------------------

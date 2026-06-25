@@ -46,6 +46,16 @@ KNOWN_FLAGS: List[dict] = [
         ),
         "default": False,
     },
+    {
+        "key": "memory",
+        "label": "Agent memory",
+        "description": (
+            "Let CineBot remember durable facts about each user (preferences, "
+            "history) across conversations and recall them later. Memories are "
+            "per-user and stored in your own database."
+        ),
+        "default": False,
+    },
 ]
 
 DEFAULTS = {f["key"]: f for f in KNOWN_FLAGS}
