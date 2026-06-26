@@ -32,6 +32,7 @@ from summariser import DEEPSEEK_MODEL, get_deepseek_client
 
 import featureflags
 import memory
+import rag
 
 log = logging.getLogger("uvicorn.error")
 
@@ -144,6 +145,28 @@ TOOLS = [
                 "phrases like 'tonight', 'this weekend', 'tomorrow'."
             ),
             "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_help_docs",
+            "description": (
+                "Search CineBook's help & policy knowledge base (refunds, "
+                "cancellations, FAQ, accessibility, food & beverage, payment) "
+                "for answers about how the cinema works. Use this for policy or "
+                "how-to questions instead of guessing, and cite the doc title."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "What to look up, e.g. 'refund for late cancellation'.",
+                    }
+                },
+                "required": ["query"],
+            },
         },
     },
 ]
@@ -271,6 +294,22 @@ def _tool_current_datetime(args: dict, user: dict, sb) -> tuple:
     }, now.strftime("%a %d %b, %I:%M %p")
 
 
+def _tool_search_help_docs(args: dict, user: dict, sb) -> tuple:
+    query = (args.get("query") or "").strip()
+    if not query:
+        return {"results": []}, "no query"
+    try:
+        chunks = rag.retrieve(query, k=4)
+    except Exception as exc:  # noqa: BLE001 — surface to model, don't crash
+        log.warning("search_help_docs failed: %s", exc)
+        return {"error": str(exc), "results": []}, "help search unavailable"
+    results = [
+        {"title": c.get("document_title"), "snippet": (c.get("content") or "")[:300]}
+        for c in chunks
+    ]
+    return {"count": len(results), "results": results}, f"found {len(results)} help snippet(s)"
+
+
 DISPATCH = {
     "search_movies": _tool_search_movies,
     "get_movie_details": _tool_get_movie_details,
@@ -278,6 +317,7 @@ DISPATCH = {
     "get_seat_availability": _tool_get_seat_availability,
     "get_my_bookings": _tool_get_my_bookings,
     "current_datetime": _tool_current_datetime,
+    "search_help_docs": _tool_search_help_docs,
 }
 
 

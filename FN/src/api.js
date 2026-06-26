@@ -62,6 +62,8 @@ export const me = () => request("/auth/me");
 // ---- Movies ----
 export const getMovies = () => request("/movies");
 export const getMovie = (id) => request(`/movies/${id}`);
+// Personalized "For You" picks → { basis, reason, movies }
+export const getRecommendations = () => request("/movies/recommended");
 export const createMovie = (payload) =>
   request("/movies", { method: "POST", body: JSON.stringify(payload) });
 export const updateMovie = (id, payload) =>

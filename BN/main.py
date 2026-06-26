@@ -59,6 +59,7 @@ import agent
 import agent_advanced
 import featureflags
 import memory
+import recommendations
 import observability
 from bookings_service import execute_cancel_booking, execute_create_booking
 from pydantic import BaseModel, Field
@@ -300,6 +301,13 @@ def list_movies():
     sb = get_supabase()
     res = sb.table("movies").select("*").order("id").execute()
     return res.data or []
+
+
+@app.get("/movies/recommended", response_model=dict)
+def recommended_movies(user: dict = Depends(get_current_user)):
+    """Personalized 'For You' picks from booking history + agent memory."""
+    sb = get_supabase()
+    return recommendations.recommend(user, sb)
 
 
 @app.get("/movies/{movie_id}", response_model=Movie)

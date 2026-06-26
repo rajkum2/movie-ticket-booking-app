@@ -32,6 +32,7 @@ const TOOL_LABELS = {
   get_seat_availability: "Checked seat availability",
   get_my_bookings: "Looked up your bookings",
   current_datetime: "Checked the current date/time",
+  search_help_docs: "📖 Searched help & policies",
   propose_booking: "Prepared a booking",
   propose_cancellation: "Prepared a cancellation",
   recall_memory: "🧠 Recalled what it knows about you",

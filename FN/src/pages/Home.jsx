@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getMovies, getMyBookings } from "../api";
+import { getMovies, getMyBookings, getRecommendations } from "../api";
 import { useAuth } from "../auth.jsx";
 import Hero from "../components/Hero.jsx";
 import MovieRow from "../components/MovieRow.jsx";
@@ -11,20 +11,24 @@ export default function Home() {
   const { user } = useAuth();
   const [movies, setMovies] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [recs, setRecs] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
-    const tasks = [getMovies()];
-    if (user) tasks.push(getMyBookings().catch(() => []));
-    Promise.all(tasks)
-      .then(([ms, bs]) => {
-        setMovies(ms || []);
-        if (bs) setBookings(bs || []);
-      })
+    getMovies()
+      .then((ms) => setMovies(ms || []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+
+    if (user) {
+      getMyBookings().then((bs) => setBookings(bs || [])).catch(() => {});
+      getRecommendations().then(setRecs).catch(() => setRecs(null));
+    } else {
+      setBookings([]);
+      setRecs(null);
+    }
   }, [user]);
 
   const sections = useMemo(() => {
@@ -98,6 +102,13 @@ export default function Home() {
     <div className="nx-home">
       <Hero movie={sections.featured} />
       <div className="nx-rows">
+        {user && recs && recs.movies && recs.movies.length >= MIN_PER_ROW && (
+          <MovieRow
+            title={`For You · ${recs.reason}`}
+            movies={recs.movies}
+          />
+        )}
+
         {sections.continueWatching.length > 0 && (
           <MovieRow
             title={`Continue watching for ${user?.full_name || user?.email?.split("@")[0]}`}
