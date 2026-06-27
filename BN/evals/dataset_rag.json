@@ -1,0 +1,12 @@
+[
+  {"id": "refund-late", "query": "If I cancel 30 minutes before the show, can I get a refund?", "expected_doc": "Refund and Cancellation Policy"},
+  {"id": "refund-window", "query": "How long before the showtime can I cancel for a full refund?", "expected_doc": "Refund and Cancellation Policy"},
+  {"id": "outside-food", "query": "Can I bring my own snacks into the cinema?", "expected_doc": "Food and Beverage Policy"},
+  {"id": "alcohol", "query": "Do you serve alcohol and what is the age limit?", "expected_doc": "Food and Beverage Policy"},
+  {"id": "wheelchair", "query": "Is the cinema wheelchair accessible?", "expected_doc": "Accessibility and Special Assistance"},
+  {"id": "captions", "query": "Do you have screenings with closed captions?", "expected_doc": "Accessibility and Special Assistance"},
+  {"id": "max-seats", "query": "How many seats can I book in a single booking?", "expected_doc": "Frequently Asked Questions"},
+  {"id": "transfer", "query": "Can I transfer my ticket to a friend?", "expected_doc": "Frequently Asked Questions"},
+  {"id": "payment-fail", "query": "What happens if my card payment fails during booking?", "expected_doc": "Booking and Payment Help"},
+  {"id": "offtopic", "query": "What is the capital of France?", "expected_doc": null}
+]
