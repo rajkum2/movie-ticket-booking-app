@@ -1,7 +1,7 @@
 """DeepSeek-powered movie summariser.
 
 DeepSeek's API is OpenAI-compatible, so we use the langfuse-wrapped OpenAI
-SDK pointed at their base URL. Importing OpenAI from `langfuse.openai`
+SDK pointed at their base URL (override with DEEPSEEK_BASE_URL/DEEPSEEK_MODEL). Importing OpenAI from `langfuse.openai`
 auto-traces every completion when Langfuse is configured; otherwise it
 behaves identically to the stock client.
 """
@@ -23,8 +23,19 @@ except Exception:  # pragma: no cover — defensive fallback
     from openai import OpenAI  # type: ignore
 
 
-DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
-DEEPSEEK_MODEL = "deepseek-chat"
+# Provider is configurable via env so the same code can run against any
+# OpenAI-compatible endpoint (DeepSeek by default, Kimi/Moonshot, etc.).
+DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
+DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+
+
+def llm_temperature(default: float) -> float:
+    """Temperature for LLM calls, overridable via LLM_TEMPERATURE.
+
+    Kimi's endpoint (api.kimi.com/coding) rejects any temperature other
+    than 1, so deployments using it must set LLM_TEMPERATURE=1.
+    """
+    return float(os.environ.get("LLM_TEMPERATURE", default))
 
 
 @lru_cache

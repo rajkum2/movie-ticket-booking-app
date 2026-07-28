@@ -11,7 +11,7 @@ from typing import Iterator, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from observability import get_prompt
-from summariser import DEEPSEEK_MODEL, get_deepseek_client
+from summariser import DEEPSEEK_MODEL, get_deepseek_client, llm_temperature
 
 
 ChatRole = Literal["user", "assistant"]
@@ -38,7 +38,7 @@ def stream_completion(
         "model": DEEPSEEK_MODEL,
         "messages": messages,
         "stream": True,
-        "temperature": temperature,
+        "temperature": llm_temperature(temperature),
     }
     if langfuse_prompt is not None:
         kwargs["langfuse_prompt"] = langfuse_prompt

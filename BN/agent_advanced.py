@@ -25,7 +25,7 @@ from agent import DISPATCH as READ_DISPATCH, TOOLS as READ_TOOLS, MAX_ITERATIONS
 from bookings_service import validate_and_price_booking
 from database import get_supabase
 from observability import get_prompt
-from summariser import DEEPSEEK_MODEL, get_deepseek_client
+from summariser import DEEPSEEK_MODEL, get_deepseek_client, llm_temperature
 
 import featureflags
 import memory
@@ -169,7 +169,7 @@ def stream_agent_chat(messages, user: dict) -> Iterator[dict]:
             "messages": convo,
             "tools": tools,
             "tool_choice": "auto",
-            "temperature": 0.3,
+            "temperature": llm_temperature(0.3),
         }
         if prompt_obj is not None:
             kwargs["langfuse_prompt"] = prompt_obj
