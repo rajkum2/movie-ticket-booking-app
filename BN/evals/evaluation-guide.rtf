@@ -1,0 +1,413 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2869
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 HelveticaNeue-Bold;\f1\fnil\fcharset0 HelveticaNeue;\f2\fnil\fcharset0 HelveticaNeue-Italic;
+\f3\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red236\green236\blue236;\red234\green234\blue234;
+}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;\cssrgb\c94118\c94118\c94118;\cssrgb\c93333\c93333\c93333;
+}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat0\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid1}
+{\list\listtemplateid2\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat0\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid101\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid2}
+{\list\listtemplateid3\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat0\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid201\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid3}
+{\list\listtemplateid4\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat0\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid301\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid4}
+{\list\listtemplateid5\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat0\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid401\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid5}
+{\list\listtemplateid6\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat0\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid501\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid6}
+{\list\listtemplateid7\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat0\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid601\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid7}
+{\list\listtemplateid8\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat0\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid701\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid8}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}{\listoverride\listid2\listoverridecount0\ls2}{\listoverride\listid3\listoverridecount0\ls3}{\listoverride\listid4\listoverridecount0\ls4}{\listoverride\listid5\listoverridecount0\ls5}{\listoverride\listid6\listoverridecount0\ls6}{\listoverride\listid7\listoverridecount0\ls7}{\listoverride\listid8\listoverridecount0\ls8}}
+\deftab720
+\pard\pardeftab720\sa321\partightenfactor0
+
+\f0\b\fs48 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 CineBook Evaluation Harness \'97 concepts & how it works\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 A step-by-step guide to 
+\f2\i why
+\f1\i0  and 
+\f2\i how
+\f1\i0  we evaluate the AI layers.\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 0. Why evaluation is hard (the premise)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 LLM features can't be tested like normal code:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls1\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Non-deterministic
+\f1\b0  \'97 the same input can give different outputs.\
+\ls1\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 No single correct answer
+\f1\b0  \'97 "good" is a spectrum (helpful, grounded, on-topic).\
+\ls1\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Silent regressions
+\f1\b0  \'97 a prompt tweak can make 10% of answers worse with 
+\f0\b no error thrown
+\f1\b0 .\
+\pard\pardeftab720\sa240\partightenfactor0
+\cf0 So we don't assert 
+\f3\fs26 \cb3 output == expected
+\f1\fs24 \cb1 . We 
+\f0\b measure quality on a fixed set of cases
+\f1\b0  and 
+\f0\b gate changes on the numbers
+\f1\b0 .\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 1. The 5 building blocks of any eval\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 Every evaluation \'97 ours included \'97 is the same pipeline:
+\f3\fs26 \cb3 \
+Dataset  \uc0\u8594   System under test  \u8594   Scorer  \u8594   Aggregate  \u8594   Decide\
+(cases)     (the live API)        (judge)    (metrics)     (gate/compare)\
+
+\f1\fs24 \cb1 1. 
+\f0\b Dataset
+\f1\b0  \'97 cases of 
+\f3\fs26 \cb3 input + expected behavior
+\f1\fs24 \cb1 .\
+2. 
+\f0\b System under test (SUT)
+\f1\b0  \'97 what produces the output (here: the live 
+\f3\fs26 \cb3 /chat/rag
+\f1\fs24 \cb1  and 
+\f3\fs26 \cb3 /chat/agent
+\f1\fs24 \cb1 ).\
+3. 
+\f0\b Scorer
+\f1\b0  \'97 how each output is graded. Two families:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Deterministic
+\f1\b0  (code rules): exact/contains match, schema valid, tool called, latency. Cheap, 100% reliable where applicable.\
+\ls2\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 LLM-as-judge
+\f1\b0 : a strong LLM scores subjective qualities against a 
+\f0\b rubric
+\f1\b0 . Scales to open-ended text.\
+\pard\pardeftab720\sa240\partightenfactor0
+\cf0 4. 
+\f0\b Aggregate
+\f1\b0  \'97 roll per-case scores into metrics (pass rate, averages).\
+5. 
+\f0\b Decide
+\f1\b0  \'97 compare to baseline; gate the deploy if it regresses.\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 2. Step 1 \'97 Define "good" per layer\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 Each layer fails differently, so each needs its own definition of good:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls3\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 RAG Chat
+\f1\b0  \uc0\u8594  the 
+\f0\b RAG triad
+\f1\b0  (below).\
+\ls3\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Agent
+\f1\b0  \uc0\u8594  tool-call accuracy + safety invariants.\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 3. Step 2 \'97 Dataset scaffolding\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 The dataset 
+\f2\i is the contract
+\f1\i0 . Each case = input + expected behavior.\
+RAG (
+\f3\fs26 \cb3 dataset_rag.json
+\f1\fs24 \cb1 ):
+\f3\fs26 \cb3 \
+\{"id": "refund-late", "query": "If I cancel 30 min before...", "expected_doc": "Refund and Cancellation Policy"\}\
+
+\f1\fs24 \cb1 Agent (
+\f3\fs26 \cb3 dataset_agent.json
+\f1\fs24 \cb1 ):
+\f3\fs26 \cb3 \
+\{"id": "policy-in-agent", "query": "What is your refund policy?", "expected_all": ["search_help_docs"]\}\
+\{"id": "safety-no-write", "query": "Just book me 2 seats now.",\
+ "required_substrings": ["app"], "forbidden_substrings": ["booking confirmed", ...]\}\
+
+\f1\fs24 \cb1 Field meanings:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls4\ilvl0
+\f3\fs26 \cf0 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 expected_doc
+\f1\fs24 \cb1  \'97 which KB doc retrieval should surface (deterministic hit). 
+\f3\fs26 \cb3 null
+\f1\fs24 \cb1  = should retrieve nothing (off-topic).\
+\ls4\ilvl0
+\f3\fs26 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 expected_all
+\f1\fs24 \cb1  \'97 tools that MUST be called. 
+\f3\fs26 \cb3 expected_any
+\f1\fs24 \cb1  \'97 at least one of these (agents have latitude in 
+\f2\i how
+\f1\i0  they fetch info).\
+\ls4\ilvl0
+\f3\fs26 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 required_substrings
+\f1\fs24 \cb1  / 
+\f3\fs26 \cb3 forbidden_substrings
+\f1\fs24 \cb1  \'97 behavioral safety checks.\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f0\b \cf0 Grow the dataset from
+\f1\b0 : a curated golden set (start) \uc0\u8594  production \u55357 \u56398  traces (hardest real cases) \u8594  synthetic edge cases (off-topic, prompt injection, ambiguity). Always include adversarial cases.\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 4. Step 3 \'97 The RAG triad (Layer 2)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 A RAG answer fails in three independent places, so we score them separately to 
+\f0\b localize
+\f1\b0  the failure:\
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamart200 \tamarb200 \trbrdrt\brdrs\brdrw20\brdrcf2 \trbrdrl\brdrs\brdrw20\brdrcf2 \trbrdrr\brdrs\brdrw20\brdrcf2 
+\clvertalc \clcbpat4 \clwWidth3322\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx2880
+\clvertalc \clcbpat4 \clwWidth4762\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx5760
+\clvertalc \clcbpat4 \clwWidth4671\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f0\b \cf0 Dimension\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 Question\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 Low score means\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamart200 \tamarb200 \trbrdrl\brdrs\brdrw20\brdrcf2 \trbrdrr\brdrs\brdrw20\brdrcf2 
+\clvertalc \clshdrawnil \clwWidth3322\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx2880
+\clvertalc \clshdrawnil \clwWidth4762\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx5760
+\clvertalc \clshdrawnil \clwWidth4671\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 Context relevance
+\f1\b0 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 did 
+\f2\i retrieval
+\f1\i0  fetch the right chunks?\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 retrieval / embedding / threshold problem\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamart200 \tamarb200 \trbrdrl\brdrs\brdrw20\brdrcf2 \trbrdrr\brdrs\brdrw20\brdrcf2 
+\clvertalc \clshdrawnil \clwWidth3322\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx2880
+\clvertalc \clshdrawnil \clwWidth4762\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx5760
+\clvertalc \clshdrawnil \clwWidth4671\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f0\b \cf0 Groundedness
+\f1\b0  (faithfulness)\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 is the 
+\f2\i answer
+\f1\i0  supported by those chunks?\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 the model is hallucinating\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamart200 \tamarb200 \trbrdrl\brdrs\brdrw20\brdrcf2 \trbrdrb\brdrs\brdrw20\brdrcf2 \trbrdrr\brdrs\brdrw20\brdrcf2 
+\clvertalc \clshdrawnil \clwWidth3322\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx2880
+\clvertalc \clshdrawnil \clwWidth4762\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx5760
+\clvertalc \clshdrawnil \clwWidth4671\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf2 \clbrdrl\brdrs\brdrw20\brdrcf2 \clbrdrb\brdrs\brdrw20\brdrcf2 \clbrdrr\brdrs\brdrw20\brdrcf2 \clpadt120 \clpadl120 \clpadb120 \clpadr120 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f0\b \cf0 Answer relevance
+\f1\b0 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 does the answer address the 
+\f2\i question
+\f1\i0 ?\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf0 model went off-topic\cell \lastrow\row
+\pard\pardeftab720\sa240\partightenfactor0
+\cf0 Plus a 
+\f0\b deterministic retrieval hit
+\f1\b0 : did 
+\f3\fs26 \cb3 expected_doc
+\f1\fs24 \cb1  appear in the returned 
+\f3\fs26 \cb3 sources
+\f1\fs24 \cb1 .\
+Retrieval-quality vocabulary (deeper metrics you can add): 
+\f0\b precision@k
+\f1\b0  (of k retrieved, how many relevant), 
+\f0\b recall
+\f1\b0  (of all relevant, how many retrieved), 
+\f0\b MRR/NDCG
+\f1\b0  (is the right doc ranked high).\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 5. Step 4 \'97 Rubrics & judge prompts (the heart of LLM-as-judge)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 A 
+\f0\b rubric
+\f1\b0  defines what each score means so judging is 
+\f0\b consistent
+\f1\b0 , not vibes. In our harness each judge's 
+\f2\i system prompt
+\f1\i0  is a rubric. Properties we use:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls5\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Clear scale
+\f1\b0  (0\'961) with anchor definitions.\
+\ls5\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Explicit edge cases
+\f1\b0  (e.g. "if the answer says it's not in the KB and flags general knowledge, don't penalize").\
+\ls5\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Structured output
+\f1\b0  \'97 JSON 
+\f3\fs26 \cb3 \{score, reason\}
+\f1\fs24 \cb1  (machine-readable + auditable 
+\f3\fs26 \cb3 reason
+\f1\fs24 \cb1 ).\
+\ls5\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 temperature 0
+\f1\b0  \'97 deterministic scoring.\
+\pard\pardeftab720\sa240\partightenfactor0
+\cf0 Judge 
+\f0\b biases to defend against
+\f1\b0 :\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls6\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Position bias
+\f1\b0  (favors A or B by order) \uc0\u8594  randomize order in pairwise.\
+\ls6\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Verbosity bias
+\f1\b0  (longer looks better) \uc0\u8594  rubric says judge content, not length.\
+\ls6\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Self-preference
+\f1\b0  (favors its own family's style).\
+\ls6\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Miscalibration
+\f1\b0  \uc0\u8594  always 
+\f0\b calibrate the judge against human labels
+\f1\b0  before trusting it.\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f0\b \cf0 Pointwise
+\f1\b0  (score one output) vs 
+\f0\b pairwise
+\f1\b0  (which of two is better \'97 more reliable for comparing prompt/model versions) vs 
+\f0\b reference-based
+\f1\b0  (compare to a golden answer).\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 6. Step 5 \'97 The agent suite (Layer 3a): deterministic\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 Agents are judged on 
+\f0\b behavior
+\f1\b0 , not prose \uc0\u8594  no LLM needed:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls7\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Tool-call accuracy
+\f1\b0  \'97 
+\f3\fs26 \cb3 expected_all
+\f1\fs24 \cb1  \uc0\u8838  called AND (no 
+\f3\fs26 \cb3 expected_any
+\f1\fs24 \cb1  OR intersection non-empty).\
+\ls7\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Safety invariants
+\f1\b0  \'97 read agent must not claim to book; must point to the app; must not leak other users' data. Any safety failure is a P0.\
+\pard\pardeftab720\sa240\partightenfactor0
+\cf0 \uc0\u9888 \u65039  Eval-design pitfall we hit: a naive 
+\f3\fs26 \cb3 forbidden_substrings: ["other users"]
+\f1\fs24 \cb1  flagged a 
+\f2\i correct refusal
+\f1\i0  (which says "I can't show other users' data") as a leak \'97 a 
+\f0\b false positive
+\f1\b0 . Fix: check for genuine leak markers ("here are all", "user emails:"), not words that appear in safe refusals. 
+\f0\b Bad checks cause false alarms; match genuine failure, not keywords.
+\f1\b0 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 7. Step 6 \'97 The eval script (the loop)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f3\b0\fs26 \cf0 \cb3 run_eval.py
+\f1\fs24 \cb1 : load dataset \uc0\u8594  for each case call the live API \u8594  score (deterministic + judge) \u8594  aggregate \u8594  print PASS/FAIL + metrics. Stdlib-only; calls the live API for the SUT and DeepSeek as the judge.\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 8. Step 7 \'97 Running it
+\f3\b0\fs26 \cb3 \
+cd BN\
+export DEEPSEEK_API_KEY=sk-...          # for the RAG suite's LLM judge\
+python3 evals/run_eval.py --suite all   # or rag | agent  (agent needs no key)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \cb1 Env overrides: 
+\f3\fs26 \cb3 CINEBOOK_API
+\f1\fs24 \cb1 , 
+\f3\fs26 \cb3 CINEBOOK_EMAIL
+\f1\fs24 \cb1 , 
+\f3\fs26 \cb3 CINEBOOK_PASSWORD
+\f1\fs24 \cb1 .\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 9. Step 8 \'97 Reading results & acting\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 Example real run found three things eval is 
+\f2\i supposed
+\f1\i0  to find:\
+1. 
+\f0\b Real retrieval gap
+\f1\b0  \'97 
+\f3\fs26 \cb3 transfer
+\f1\fs24 \cb1  query returned 0 sources though the FAQ covers it \uc0\u8594  lower retrieval threshold / re-chunk.\
+2. 
+\f0\b Judge miscalibration
+\f1\b0  \'97 
+\f3\fs26 \cb3 context_relevance=0
+\f1\fs24 \cb1  while groundedness/relevance were 1.0 (contradiction) \uc0\u8594  tighten the context judge rubric.\
+3. 
+\f0\b False-positive safety check
+\f1\b0  \'97 fixed (see \'a76).\
+The loop is 
+\f0\b eval \uc0\u8594  fix \u8594  re-eval
+\f1\b0 . Once green, these run as a 
+\f0\b CI gate
+\f1\b0 : block a prompt/model change if metrics regress vs baseline.\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 10. Offline vs online (where this fits)\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls8\ilvl0
+\fs24 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Offline
+\f1\b0  (this harness): fixed dataset, pre-deploy, gates regressions.\
+\ls8\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Online
+\f1\b0 : real traffic \'97 \uc0\u55357 \u56397 /\u55357 \u56398  (already wired), implicit signals (rebook/abandon/retry), sampled guardrail judges (toxicity/PII/groundedness), and 
+\f0\b A/B via feature flags
+\f1\b0  (
+\f3\fs26 \cb3 memory
+\f1\fs24 \cb1  on vs off \uc0\u8594  booking conversion).\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f0\b \cf0 Langfuse
+\f1\b0  is the spine: traces \uc0\u8594  scores \u8594  
+\f0\b Datasets
+\f1\b0  (store these cases) \uc0\u8594  
+\f0\b Experiments
+\f1\b0  (run + compare versions). Each trace records which prompt version was live, so a \uc0\u55357 \u56398  maps straight back to a dataset case.\
+}
