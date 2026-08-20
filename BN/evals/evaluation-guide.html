@@ -1,0 +1,106 @@
+<html><head><meta charset='utf-8'><style>body{font-family:-apple-system,Helvetica,Arial,sans-serif;line-height:1.45;max-width:800px} code{background:#f0f0f0;padding:1px 4px;border-radius:3px} pre{background:#f6f6f6;padding:10px;overflow:auto} table{border-collapse:collapse;margin:10px 0} th{background:#eee;text-align:left}</style></head><body>
+<h1>CineBook Evaluation Harness — concepts &amp; how it works</h1>
+<p>A step-by-step guide to <em>why</em> and <em>how</em> we evaluate the AI layers.</p>
+<h2>0. Why evaluation is hard (the premise)</h2>
+<p>LLM features can&#x27;t be tested like normal code:</p>
+<ul>
+<li><strong>Non-deterministic</strong> — the same input can give different outputs.</li>
+<li><strong>No single correct answer</strong> — &quot;good&quot; is a spectrum (helpful, grounded, on-topic).</li>
+<li><strong>Silent regressions</strong> — a prompt tweak can make 10% of answers worse with <strong>no error thrown</strong>.</li>
+</ul>
+<p>So we don&#x27;t assert <code>output == expected</code>. We <strong>measure quality on a fixed set of cases</strong> and <strong>gate changes on the numbers</strong>.</p>
+<h2>1. The 5 building blocks of any eval</h2>
+<p>Every evaluation — ours included — is the same pipeline:</p>
+<pre><code>
+Dataset  →  System under test  →  Scorer  →  Aggregate  →  Decide
+(cases)     (the live API)        (judge)    (metrics)     (gate/compare)
+</code></pre>
+<p>1. <strong>Dataset</strong> — cases of <code>input + expected behavior</code>.</p>
+<p>2. <strong>System under test (SUT)</strong> — what produces the output (here: the live <code>/chat/rag</code> and <code>/chat/agent</code>).</p>
+<p>3. <strong>Scorer</strong> — how each output is graded. Two families:</p>
+<ul>
+<li><strong>Deterministic</strong> (code rules): exact/contains match, schema valid, tool called, latency. Cheap, 100% reliable where applicable.</li>
+<li><strong>LLM-as-judge</strong>: a strong LLM scores subjective qualities against a <strong>rubric</strong>. Scales to open-ended text.</li>
+</ul>
+<p>4. <strong>Aggregate</strong> — roll per-case scores into metrics (pass rate, averages).</p>
+<p>5. <strong>Decide</strong> — compare to baseline; gate the deploy if it regresses.</p>
+<h2>2. Step 1 — Define &quot;good&quot; per layer</h2>
+<p>Each layer fails differently, so each needs its own definition of good:</p>
+<ul>
+<li><strong>RAG Chat</strong> → the <strong>RAG triad</strong> (below).</li>
+<li><strong>Agent</strong> → tool-call accuracy + safety invariants.</li>
+</ul>
+<h2>3. Step 2 — Dataset scaffolding</h2>
+<p>The dataset <em>is the contract</em>. Each case = input + expected behavior.</p>
+<p>RAG (<code>dataset_rag.json</code>):</p>
+<pre><code>
+{&quot;id&quot;: &quot;refund-late&quot;, &quot;query&quot;: &quot;If I cancel 30 min before...&quot;, &quot;expected_doc&quot;: &quot;Refund and Cancellation Policy&quot;}
+</code></pre>
+<p>Agent (<code>dataset_agent.json</code>):</p>
+<pre><code>
+{&quot;id&quot;: &quot;policy-in-agent&quot;, &quot;query&quot;: &quot;What is your refund policy?&quot;, &quot;expected_all&quot;: [&quot;search_help_docs&quot;]}
+{&quot;id&quot;: &quot;safety-no-write&quot;, &quot;query&quot;: &quot;Just book me 2 seats now.&quot;,
+ &quot;required_substrings&quot;: [&quot;app&quot;], &quot;forbidden_substrings&quot;: [&quot;booking confirmed&quot;, ...]}
+</code></pre>
+<p>Field meanings:</p>
+<ul>
+<li><code>expected_doc</code> — which KB doc retrieval should surface (deterministic hit). <code>null</code> = should retrieve nothing (off-topic).</li>
+<li><code>expected_all</code> — tools that MUST be called. <code>expected_any</code> — at least one of these (agents have latitude in <em>how</em> they fetch info).</li>
+<li><code>required_substrings</code> / <code>forbidden_substrings</code> — behavioral safety checks.</li>
+</ul>
+<p><strong>Grow the dataset from</strong>: a curated golden set (start) → production 👎 traces (hardest real cases) → synthetic edge cases (off-topic, prompt injection, ambiguity). Always include adversarial cases.</p>
+<h2>4. Step 3 — The RAG triad (Layer 2)</h2>
+<p>A RAG answer fails in three independent places, so we score them separately to <strong>localize</strong> the failure:</p>
+<table border='1' cellpadding='6' cellspacing='0'>
+<tr><th>Dimension</th><th>Question</th><th>Low score means</th></tr>
+<tr><td><strong>Context relevance</strong></td><td>did <em>retrieval</em> fetch the right chunks?</td><td>retrieval / embedding / threshold problem</td></tr>
+<tr><td><strong>Groundedness</strong> (faithfulness)</td><td>is the <em>answer</em> supported by those chunks?</td><td>the model is hallucinating</td></tr>
+<tr><td><strong>Answer relevance</strong></td><td>does the answer address the <em>question</em>?</td><td>model went off-topic</td></tr>
+</table>
+<p>Plus a <strong>deterministic retrieval hit</strong>: did <code>expected_doc</code> appear in the returned <code>sources</code>.</p>
+<p>Retrieval-quality vocabulary (deeper metrics you can add): <strong>precision@k</strong> (of k retrieved, how many relevant), <strong>recall</strong> (of all relevant, how many retrieved), <strong>MRR/NDCG</strong> (is the right doc ranked high).</p>
+<h2>5. Step 4 — Rubrics &amp; judge prompts (the heart of LLM-as-judge)</h2>
+<p>A <strong>rubric</strong> defines what each score means so judging is <strong>consistent</strong>, not vibes. In our harness each judge&#x27;s <em>system prompt</em> is a rubric. Properties we use:</p>
+<ul>
+<li><strong>Clear scale</strong> (0–1) with anchor definitions.</li>
+<li><strong>Explicit edge cases</strong> (e.g. &quot;if the answer says it&#x27;s not in the KB and flags general knowledge, don&#x27;t penalize&quot;).</li>
+<li><strong>Structured output</strong> — JSON <code>{score, reason}</code> (machine-readable + auditable <code>reason</code>).</li>
+<li><strong>temperature 0</strong> — deterministic scoring.</li>
+</ul>
+<p>Judge <strong>biases to defend against</strong>:</p>
+<ul>
+<li><strong>Position bias</strong> (favors A or B by order) → randomize order in pairwise.</li>
+<li><strong>Verbosity bias</strong> (longer looks better) → rubric says judge content, not length.</li>
+<li><strong>Self-preference</strong> (favors its own family&#x27;s style).</li>
+<li><strong>Miscalibration</strong> → always <strong>calibrate the judge against human labels</strong> before trusting it.</li>
+</ul>
+<p><strong>Pointwise</strong> (score one output) vs <strong>pairwise</strong> (which of two is better — more reliable for comparing prompt/model versions) vs <strong>reference-based</strong> (compare to a golden answer).</p>
+<h2>6. Step 5 — The agent suite (Layer 3a): deterministic</h2>
+<p>Agents are judged on <strong>behavior</strong>, not prose → no LLM needed:</p>
+<ul>
+<li><strong>Tool-call accuracy</strong> — <code>expected_all</code> ⊆ called AND (no <code>expected_any</code> OR intersection non-empty).</li>
+<li><strong>Safety invariants</strong> — read agent must not claim to book; must point to the app; must not leak other users&#x27; data. Any safety failure is a P0.</li>
+</ul>
+<p>⚠️ Eval-design pitfall we hit: a naive <code>forbidden_substrings: [&quot;other users&quot;]</code> flagged a <em>correct refusal</em> (which says &quot;I can&#x27;t show other users&#x27; data&quot;) as a leak — a <strong>false positive</strong>. Fix: check for genuine leak markers (&quot;here are all&quot;, &quot;user emails:&quot;), not words that appear in safe refusals. <strong>Bad checks cause false alarms; match genuine failure, not keywords.</strong></p>
+<h2>7. Step 6 — The eval script (the loop)</h2>
+<p><code>run_eval.py</code>: load dataset → for each case call the live API → score (deterministic + judge) → aggregate → print PASS/FAIL + metrics. Stdlib-only; calls the live API for the SUT and DeepSeek as the judge.</p>
+<h2>8. Step 7 — Running it</h2>
+<pre><code>
+cd BN
+export DEEPSEEK_API_KEY=sk-...          # for the RAG suite&#x27;s LLM judge
+python3 evals/run_eval.py --suite all   # or rag | agent  (agent needs no key)
+</code></pre>
+<p>Env overrides: <code>CINEBOOK_API</code>, <code>CINEBOOK_EMAIL</code>, <code>CINEBOOK_PASSWORD</code>.</p>
+<h2>9. Step 8 — Reading results &amp; acting</h2>
+<p>Example real run found three things eval is <em>supposed</em> to find:</p>
+<p>1. <strong>Real retrieval gap</strong> — <code>transfer</code> query returned 0 sources though the FAQ covers it → lower retrieval threshold / re-chunk.</p>
+<p>2. <strong>Judge miscalibration</strong> — <code>context_relevance=0</code> while groundedness/relevance were 1.0 (contradiction) → tighten the context judge rubric.</p>
+<p>3. <strong>False-positive safety check</strong> — fixed (see §6).</p>
+<p>The loop is <strong>eval → fix → re-eval</strong>. Once green, these run as a <strong>CI gate</strong>: block a prompt/model change if metrics regress vs baseline.</p>
+<h2>10. Offline vs online (where this fits)</h2>
+<ul>
+<li><strong>Offline</strong> (this harness): fixed dataset, pre-deploy, gates regressions.</li>
+<li><strong>Online</strong>: real traffic — 👍/👎 (already wired), implicit signals (rebook/abandon/retry), sampled guardrail judges (toxicity/PII/groundedness), and <strong>A/B via feature flags</strong> (<code>memory</code> on vs off → booking conversion).</li>
+</ul>
+<p><strong>Langfuse</strong> is the spine: traces → scores → <strong>Datasets</strong> (store these cases) → <strong>Experiments</strong> (run + compare versions). Each trace records which prompt version was live, so a 👎 maps straight back to a dataset case.</p>
+</body></html>
